@@ -93,6 +93,106 @@ export default function App() {
   const [callbackNumber, setCallbackNumber] = useState("");
   const [callbackSubmitted, setCallbackSubmitted] = useState(false);
 
+  // Live Chat Integration for Non-WhatsApp/International clients
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatNotificationActive, setIsChatNotificationActive] = useState(true);
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string;
+    sender: "user" | "agent";
+    text: string;
+    timestamp: string;
+  }>>([
+    {
+      id: "init-1",
+      sender: "agent",
+      text: "Hello! 👋 Welcome to Diginfotech Solutions India. I'm Mia, your dedicated assistance coordinator.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    },
+    {
+      id: "init-2",
+      sender: "agent",
+      text: "Since you are visiting us from outside India, or if you don't use WhatsApp, you can chat with our team live right here. How can I help you today?",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [isChatTyping, setIsChatTyping] = useState(false);
+  const [chatUserStep, setChatUserStep] = useState<"idle" | "awaiting_name" | "awaiting_email" | "awaiting_details" | "complete">("idle");
+  const [chatLeadData, setChatLeadData] = useState({ name: "", email: "", details: "" });
+
+  const sendAgentReply = (userMsg: string, currentStep: typeof chatUserStep) => {
+    setIsChatTyping(true);
+    setTimeout(() => {
+      setIsChatTyping(false);
+      let replyText = "";
+      let nextStep = currentStep;
+
+      if (currentStep === "awaiting_name") {
+        setChatLeadData(prev => ({ ...prev, name: userMsg }));
+        replyText = `Nice to meet you, ${userMsg}! 🌟 To make sure our engineers can send you custom pricing plans and follow up correctly, could you please share your Email Address?`;
+        nextStep = "awaiting_email";
+      } else if (currentStep === "awaiting_email") {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(userMsg)) {
+          replyText = "Hmm, that email doesn't look quite right. Could you please enter a valid email address so we can reach you?";
+          nextStep = "awaiting_email";
+        } else {
+          setChatLeadData(prev => ({ ...prev, email: userMsg }));
+          replyText = "Got it! Lastly, tell me briefly about your project (e.g., custom real estate portal, fast e-commerce store, automated workflows, or brand logos) and any specific requirements:";
+          nextStep = "awaiting_details";
+        }
+      } else if (currentStep === "awaiting_details") {
+        setChatLeadData(prev => ({ ...prev, details: userMsg }));
+        const ticketId = `DG-${Math.floor(Math.random() * 90000 + 10000)}`;
+        replyText = `Fantastic! I've logged your request under Ticket Ref: ${ticketId}.\n\nWe have scheduled a high-priority review for your account. Our lead consultant will reach out directly to your email within the next 4 hours with concrete pricing structures and a custom roadmap. Thank you for connecting!`;
+        nextStep = "complete";
+      } else {
+        const msg = userMsg.toLowerCase();
+        if (msg.includes("price") || msg.includes("cost") || msg.includes("quote") || msg.includes("how much") || msg.includes("pricing")) {
+          replyText = "I'd love to help configure custom pricing options for you! Let's get started. May I please know your Name?";
+          nextStep = "awaiting_name";
+        } else if (msg.includes("website") || msg.includes("portal") || msg.includes("real estate") || msg.includes("site") || msg.includes("shop")) {
+          replyText = "Outstanding! We design lightning-fast websites and custom property portals. To detail your design scope and cost, could I get your Name to start?";
+          nextStep = "awaiting_name";
+        } else {
+          replyText = "I would be glad to help schedule a free consulting call or draft a proposal. To configure your free briefing, what is your Name?";
+          nextStep = "awaiting_name";
+        }
+      }
+
+      setChatUserStep(nextStep);
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: `reply-${Date.now()}`,
+          sender: "agent",
+          text: replyText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+    }, 1200);
+  };
+
+  const handleSendChatMessage = (textToSend?: string) => {
+    const rawMsg = textToSend !== undefined ? textToSend : chatInput;
+    const msg = rawMsg.trim();
+    if (!msg) return;
+
+    if (textToSend === undefined) {
+      setChatInput("");
+    }
+
+    const newUserMsg = {
+      id: `user-${Date.now()}`,
+      sender: "user" as const,
+      text: msg,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setChatMessages(prev => [...prev, newUserMsg]);
+    sendAgentReply(rawMsg, chatUserStep);
+  };
+
   // Dynamic system stats counters (for realistic premium feel)
   const [consultationsBooked, setConsultationsBooked] = useState(48);
 
@@ -111,6 +211,20 @@ export default function App() {
 
   const getWhatsAppLink = (messageText: string) => {
     return `https://wa.me/918104439293?text=${encodeURIComponent(messageText)}`;
+  };
+
+  const scrollToService = (id: string) => {
+    const el = document.getElementById(`service-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      
+      // Highlight element with premium glowing rings
+      const highlightClasses = ["ring-4", "ring-cyan-accent/80", "border-cyan-accent", "shadow-[0_0_50px_rgba(0,209,255,0.45)]"];
+      el.classList.add(...highlightClasses);
+      setTimeout(() => {
+        el.classList.remove(...highlightClasses);
+      }, 2500);
+    }
   };
 
   const services: Service[] = [
@@ -758,6 +872,46 @@ export default function App() {
             <p className="text-white/70 text-base md:text-lg font-light leading-relaxed">
               We design outstanding websites, design creative brands, run profitable marketing campaigns, and set up smart business automation.
             </p>
+          </div>
+
+          {/* CREATIVE SERVICES STACK COMPACT DASHBOARD */}
+          <div className="mb-16 bg-gradient-to-r from-[#171e54] via-[#090e30] to-[#171e54] p-6 sm:p-8 rounded-3xl border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.65),_inset_0_1px_1px_rgba(255,255,255,0.25)] relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,209,255,0.12),transparent_70%)] pointer-events-none"></div>
+            
+            <div className="mb-6 pb-6 border-b border-white/10 relative z-10 text-center md:text-left">
+              <h3 className="text-lg font-bold text-white flex items-center justify-center md:justify-start gap-2.5">
+                <Sparkles className="w-5 h-5 text-cyan-accent animate-pulse" />
+                <span className="font-display tracking-tight text-white">Services Quick-Glance Desk</span>
+              </h3>
+              <p className="text-white/60 text-xs mt-1.5 font-light">
+                Click any service bubble to auto-scroll down to its detailed specifications, process milestones, and tech tools.
+              </p>
+            </div>
+
+            {/* Grid display: 6 columns on large screens for a single-screen complete glance */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 relative z-10">
+              {services.map((svc) => {
+                const QuickIcon = svc.icon;
+                return (
+                  <button
+                    key={`quick-stack-${svc.id}`}
+                    onClick={() => scrollToService(svc.id)}
+                    className="group bg-gradient-to-b from-[#1c276e]/90 to-[#0b102e]/98 hover:from-[#253287] hover:to-[#0e153b] border border-white/15 hover:border-cyan-accent/80 p-4 rounded-2xl transition-all duration-300 hover:-translate-y-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] hover:shadow-[0_12px_20px_rgba(0,209,255,0.15)] flex flex-col items-center text-center justify-center gap-3 relative overflow-hidden cursor-pointer select-none focus:outline-none min-h-[110px]"
+                  >
+                    {/* Glowing card background hover indicator */}
+                    <div className="absolute -top-1 w-full h-[2.5px] bg-gradient-to-r from-transparent via-cyan-accent/50 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-350"></div>
+                    
+                    <div className="w-10 h-10 rounded-full bg-[#090F30] border border-white/10 flex items-center justify-center text-cyan-accent group-hover:text-white group-hover:bg-cyan-accent group-hover:border-transparent transition-all">
+                      <QuickIcon className="w-4.5 h-4.5" />
+                    </div>
+                    
+                    <span className="text-white font-extrabold group-hover:text-cyan-accent transition-colors text-[11px] sm:text-xs leading-snug tracking-tight font-display">
+                      {svc.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Grid Layout containing 6 premium cards */}
@@ -1670,48 +1824,211 @@ export default function App() {
       </footer>
 
       {/* 6. WHATSAPP & COMMUNICATIONS FLOATING INTEGRATION (Bottom-right placement with interactive modal panel) */}
-      <div id="floating-widget" className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-3">
+      <div id="floating-widget" className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-3 max-w-[90vw]">
         
-        {/* Floating Call & Email quick connect items (shown neatly above WhatsApp action when hovered or triggered) */}
-        <div id="floating-assist-drawer" className="flex flex-col items-end space-y-2.5 transition-all">
-          <a 
-            href={`tel:${contactPhone}`}
-            className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
-            title="Fast direct phone connection"
-          >
-            <Phone className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
-            <span className="hidden sm:inline">Call Office</span>
-          </a>
-          <a 
-            href={`mailto:${contactEmail}`}
-            className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
-            title="Send enterprise brief email"
-          >
-            <Mail className="w-3.5 h-3.5 text-cyan-accent" />
-            <span className="hidden sm:inline">Email Team</span>
-          </a>
-        </div>
+        {/* INTERACTIVE COMPACT LIVE CHAT WINDOW */}
+        {isChatOpen && (
+          <div className="w-[320px] sm:w-[370px] h-[480px] rounded-3xl overflow-hidden border border-white/20 bg-gradient-to-b from-[#0e1647] to-[#060a22] flex flex-col shadow-[0_25px_65px_rgba(0,0,0,0.85)] relative animate-fade-in mb-2">
+            
+            {/* Header: Support Representative Info */}
+            <div className="p-4 bg-[#090e30]/90 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <img 
+                    src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&h=100&q=80" 
+                    alt="Support Coordinator" 
+                    className="w-10 h-10 rounded-full object-cover border border-cyan-accent/40"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-navy-dark animate-pulse"></span>
+                </div>
+                <div className="text-left text-xs">
+                  <h4 className="text-white font-extrabold flex items-center gap-1.5 font-display">
+                    <span>Mia Collins</span>
+                    <Sparkles className="w-3 h-3 text-cyan-accent" />
+                  </h4>
+                  <p className="text-cyan-accent/90 text-[10px] font-mono tracking-wider uppercase font-semibold">Global Help Desk</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChatOpen(false)}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all cursor-pointer focus:outline-none"
+                title="Minimize chat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chat Body & Conversation Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#060a21]/80 flex flex-col scrollbar-thin">
+              {chatMessages.map((msg) => (
+                <div 
+                  key={msg.id} 
+                  className={`flex flex-col max-w-[85%] ${msg.sender === "user" ? "self-end items-end" : "self-start items-start"}`}
+                >
+                  <div 
+                    className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                      msg.sender === "user" 
+                        ? "bg-gradient-to-r from-primary to-[#005BFF] text-white rounded-tr-none" 
+                        : "bg-[#172054] text-white/95 border border-white/5 rounded-tl-none"
+                    }`}
+                  >
+                    {msg.text.split("\n").map((line, idx) => (
+                      <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>{line}</p>
+                    ))}
+                  </div>
+                  <span className="text-[9px] font-mono text-white/30 mt-1 px-1">{msg.timestamp}</span>
+                </div>
+              ))}
+
+              {/* Typing indicator */}
+              {isChatTyping && (
+                <div className="flex flex-col items-start space-y-1 self-start">
+                  <div className="flex items-center space-x-1.5 bg-[#172054] border border-white/5 p-3 px-4 rounded-2xl rounded-tl-none">
+                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  </div>
+                  <span className="text-[8px] font-mono text-white/30 px-1">Mia is typing...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Helper Interactive Suggestion chips */}
+            {chatUserStep === "idle" && !isChatTyping && (
+              <div className="p-3 bg-[#080d28] border-t border-white/5 flex flex-wrap gap-1.5">
+                <button 
+                  onClick={() => handleSendChatMessage("🌐 Request a Custom Pricing Quote")}
+                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                >
+                  🌐 Request Custom Quote
+                </button>
+                <button 
+                  onClick={() => handleSendChatMessage("📅 Book a Free Consultation Call")}
+                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                >
+                  📅 Book Consultation Call
+                </button>
+                <button 
+                  onClick={() => handleSendChatMessage("💬 Ask a General Question")}
+                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                >
+                  💬 Ask general question
+                </button>
+              </div>
+            )}
+
+            {/* Support Message Composer Input Footer */}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendChatMessage();
+              }} 
+              className="p-3.5 bg-[#090e32] border-t border-white/10 flex items-center space-x-2"
+            >
+              <input 
+                type="text" 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder={
+                  chatUserStep === "awaiting_name" 
+                    ? "Enter your Name..." 
+                    : chatUserStep === "awaiting_email" 
+                      ? "Enter your Email..." 
+                      : chatUserStep === "awaiting_details"
+                        ? "Describe your project briefly..."
+                        : "Type your query here..."
+                }
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-cyan-accent text-white placeholder-white/40 min-w-0"
+              />
+              <button 
+                type="submit" 
+                className="p-2 rounded-xl bg-cyan-accent hover:bg-cyan-accent/80 text-navy-dark transition-all cursor-pointer flex items-center justify-center focus:outline-none"
+                title="Send inquiry"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Floating Call & Email quick connect items (shown neatly above actions when hovered or triggered) */}
+        {!isChatOpen && (
+          <div id="floating-assist-drawer" className="flex flex-col items-end space-y-2.5 transition-all">
+            <a 
+              href={`tel:${contactPhone}`}
+              className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
+              title="Fast direct phone connection"
+            >
+              <Phone className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
+              <span className="hidden sm:inline">Call Office</span>
+            </a>
+            <a 
+              href={`mailto:${contactEmail}`}
+              className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
+              title="Send enterprise brief email"
+            >
+              <Mail className="w-3.5 h-3.5 text-cyan-accent" />
+              <span className="hidden sm:inline">Email Team</span>
+            </a>
+          </div>
+        )}
+
+        {/* Master Floating Live Chat Support button */}
+        <button 
+          onClick={() => {
+            setIsChatOpen(!isChatOpen);
+            setIsChatNotificationActive(false);
+          }}
+          className={`relative w-14 h-14 rounded-full bg-gradient-to-r from-primary to-cyan-accent hover:from-primary/95 hover:to-cyan-accent/95 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-110 active:scale-95 group focus:outline-none cursor-pointer border border-white/20`}
+          title="Open Live Chat Desk"
+        >
+          {/* Active notification indicator */}
+          {isChatNotificationActive && (
+            <>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 z-10">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">1</span>
+              </span>
+              
+              {/* Context prompt banner informing outside India clients */}
+              <div className="absolute right-18 bg-[#090e30]/95 border border-white/15 px-3 py-2 rounded-xl text-[10.5px] font-bold text-white shadow-xl flex items-center space-x-2 animate-bounce select-none whitespace-nowrap leading-none">
+                <span className="w-2 h-2 rounded-full bg-cyan-accent animate-pulse"></span>
+                <span>International Client? Chat Live with Team 💬</span>
+              </div>
+            </>
+          )}
+
+          {isChatOpen ? <X className="w-6 h-6 animate-pulse" /> : <MessageSquare className="w-6 h-6 fill-white text-cyan-accent" />}
+          
+          <span className="absolute right-16 bg-navy-dark border border-white/10 text-[10px] uppercase font-bold tracking-widest text-[#00D1FF] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
+            <span className="w-1.5 h-1.5 bg-cyan-accent rounded-full"></span>
+            <span>Live Chat Support</span>
+          </span>
+        </button>
 
         {/* Master Floating WhatsApp Action button */}
-        <a 
-          href={getWhatsAppLink("Hello Diginfotech Solutions India, I’m interested in your services.")}
-          target="_blank"
-          rel="noreferrer"
-          id="whatsapp-trigger"
-          className="relative w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-110 active:scale-95 group focus:outline-none outline-none cursor-pointer ring-4 ring-green-500/20"
-          title="Direct online support on WhatsApp"
-        >
-          {/* Neon green pulsing wave rings around target */}
-          <span className="absolute inset-0 rounded-full w-full h-full bg-green-500/45 animate-ping opacity-60 pointer-events-none"></span>
-          
-          <MessageSquare className="w-6 h-6 fill-white" />
-          
-          {/* Smart Tooltip element */}
-          <span className="absolute right-16 bg-navy-dark border border-white/10 text-[10px] uppercase font-bold tracking-widest text-[#00D1FF] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-            <span>Online now: Chat</span>
-          </span>
-        </a>
+        {!isChatOpen && (
+          <a 
+            href={getWhatsAppLink("Hello Diginfotech Solutions India, I’m interested in your services.")}
+            target="_blank"
+            rel="noreferrer"
+            id="whatsapp-trigger"
+            className="relative w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-110 active:scale-95 group focus:outline-none outline-none cursor-pointer ring-4 ring-green-500/20"
+            title="Direct online support on WhatsApp"
+          >
+            {/* Neon green pulsing wave rings around target */}
+            <span className="absolute inset-0 rounded-full w-full h-full bg-green-500/45 animate-ping opacity-60 pointer-events-none"></span>
+            
+            <Phone className="w-5 h-5 fill-white" />
+            
+            {/* Smart Tooltip element */}
+            <span className="absolute right-16 bg-navy-dark border border-white/10 text-[10px] uppercase font-bold tracking-widest text-[#00D1FF] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+              <span>WhatsApp Chat</span>
+            </span>
+          </a>
+        )}
 
       </div>
 
