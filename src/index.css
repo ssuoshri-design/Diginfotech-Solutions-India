@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", sans-serif;
+  --font-display: "Poppins", sans-serif;
+  --font-accent: "Montserrat", sans-serif;
+  
+  --color-primary: #005BFF;
+  --color-navy-dark: #05081E;
+  --color-navy-bg: #0A0F2C;
+  --color-cyan-accent: #00D1FF;
+  --color-dark-gray: #1A1A1A;
+}
+
+/* Custom premium scrollbar and futuristic text selections */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+  }
+  
+  ::selection {
+    background-color: rgba(0, 209, 255, 0.25);
+    color: #ffffff;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #05081E;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #1e295d;
+    border-radius: 4px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #005BFF;
+  }
+}
+
+/* Animated gradient background and ambient mesh effects */
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1) translate(0px, 0px);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.15) translate(30px, -20px);
+    opacity: 0.35;
+  }
+}
+
+@keyframes pulseGlowCyan {
+  0%, 100% {
+    transform: scale(1.1) translate(0px, 0px);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scale(0.9) translate(-40px, 40px);
+    opacity: 0.3;
+  }
+}
+
+.animate-pulse-glow-blue {
+  animation: pulseGlow 15s infinite ease-in-out;
+}
+
+.animate-pulse-glow-cyan {
+  animation: pulseGlowCyan 18s infinite ease-in-out;
+}
+
+/* Futuristic glassmorphism */
+.glass-panel {
+  background: rgba(10, 15, 44, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-panel-hover {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(10, 15, 44, 0.75);
+  border-color: rgba(0, 209, 255, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(0, 83, 255, 0.2), 
+              0 0 1px 1px rgba(0, 209, 255, 0.1) inset;
+}
+
+/* Glowing text and utilities */
+.glow-text-cyan {
+  text-shadow: 0 0 20px rgba(0, 209, 255, 0.5);
+}
+
+.glow-shadow-blue {
+  box-shadow: 0 0 40px rgba(0, 91, 255, 0.3);
+}
+
+.glow-shadow-cyan {
+  box-shadow: 0 0 40px rgba(0, 209, 255, 0.3);
+}
