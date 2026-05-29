@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 
 // Dynamic reference to the generated premium visual mockup
-const portfolioMockup = "/src/assets/images/portfolio_mockup_1780008642183.png";
+const portfolioMockup = "/src/assets/images/cyber_dashboard_3d_1780061014344.png";
 
 // Highly detailed custom SVG Logo component matching the newly uploaded brand identity
 const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }) => (
@@ -1442,7 +1442,7 @@ export default function App() {
       <div className="absolute bottom-[1000px] left-10 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[160px] pointer-events-none"></div>
 
       {/* HEADER SECTION (Top Navigation Desk) */}
-      <header id="header" className="sticky top-0 z-45 bg-[#0B0F17]/90 backdrop-blur-md border-b border-white/[0.05] transition-all">
+      <header id="header" className="sticky top-0 z-45 bg-[#060913]/90 backdrop-blur-md border-b border-white/[0.05] transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
           {/* Logo brand container */}
@@ -1594,7 +1594,7 @@ export default function App() {
                 {/* Primary CTA (Get Started modal target or Contact focus) */}
                 <a 
                   href="#contact"
-                  className="px-8 py-4 bg-primary hover:bg-[#005BFF]/90 text-white font-bold rounded-xl flex items-center justify-center space-x-3 shadow-lg shadow-primary/40 transform active:scale-95 transition-all text-sm uppercase tracking-widest glow-shadow-blue"
+                  className="px-8 py-4 bg-primary hover:bg-[#431BDB] text-white font-bold rounded-xl flex items-center justify-center space-x-3 shadow-lg shadow-primary/40 transform active:scale-95 transition-all text-sm uppercase tracking-widest glow-shadow-blue"
                 >
                   <span>Get Started</span>
                   <ArrowRight className="w-4 h-4 animate-bounce-right" />
@@ -1735,7 +1735,7 @@ export default function App() {
       </section>
 
       {/* 2. SERVICES SECTION (Sleek Compact Grid - Fits on One Screen with High Visibility) */}
-      <section id="services" className="py-16 border-t border-white/5 relative bg-[#0B0F17]">
+      <section id="services" className="py-16 border-t border-white/5 relative bg-[#060913]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
@@ -1751,37 +1751,53 @@ export default function App() {
             </p>
           </div>
 
-          {/* Compact Grid Layout containing 6 premium interactive items */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            {services.map((svc) => {
+          {/* Alternating Asymmetric Bento Grid Layout containing 6 premium interactive items */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {services.map((svc, idx) => {
               const IconComp = svc.icon;
+              const colSpanClass = idx === 0 || idx === 3 || idx === 4 ? "lg:col-span-2" : "col-span-1";
               return (
                 <div 
                   key={svc.id}
                   id={`service-${svc.id}`}
-                  className="bg-[#111622] border border-white/[0.08] hover:border-cyan-accent/60 shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_25px_rgba(0,209,255,0.15)] rounded-2xl p-4 flex items-center justify-between group cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
+                  className={`glass-panel glass-panel-hover ${colSpanClass} rounded-2xl p-6 md:p-8 flex flex-col justify-between group cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden border border-white/[0.05] h-full`}
                   onClick={() => setSelectedServiceDetail(svc)}
                 >
-                  <div className="flex items-center space-x-4 relative z-10 text-left">
-                    {/* Glowing High-Contrast Cyber Icon Container */}
-                    <div className="w-9 h-9 rounded-xl bg-cyan-accent/10 flex items-center justify-center border border-cyan-accent/30 group-hover:bg-cyan-accent/20 group-hover:border-cyan-accent/60 transition-all shrink-0">
-                      <IconComp className="w-4.5 h-4.5 text-cyan-accent filter drop-shadow-[0_0_8px_rgba(0,209,255,0.5)]" />
-                    </div>
+                  {/* Subtle top decoration */}
+                  <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary via-cyan-accent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  {/* Neon gradient background highlight on hover */}
+                  <div className="absolute -right-24 -bottom-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl group-hover:bg-cyan-accent/15 transition-all duration-500 pointer-events-none"></div>
 
-                    <div className="space-y-0.5 text-left">
-                      <span className="text-[8px] font-mono tracking-widest text-cyan-accent bg-[#0B0F17]/80 rounded px-1.5 py-0.5 font-bold uppercase border border-white/[0.05]">
+                  <div className="space-y-4 text-left">
+                    {/* Top line: Icon and Tag */}
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-xl bg-cyan-accent/15 flex items-center justify-center border border-cyan-accent/30 group-hover:bg-cyan-accent/25 group-hover:border-cyan-accent/60 transition-all shrink-0">
+                        <IconComp className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_8px_rgba(0,209,255,0.6)]" />
+                      </div>
+                      <span className="text-[9px] font-mono tracking-widest text-[#00D1FF] bg-black/40 rounded px-2.5 py-1 font-bold uppercase border border-white/5">
                         {svc.tag}
                       </span>
-                      <h3 className="text-xs sm:text-sm font-extrabold text-white group-hover:text-cyan-accent transition-colors">
+                    </div>
+
+                    {/* Middle: Title and shortDesc */}
+                    <div className="space-y-2">
+                      <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-cyan-accent transition-colors tracking-tight font-display">
                         {svc.title}
                       </h3>
+                      <p className="text-white/60 text-sm font-light leading-relaxed">
+                        {svc.shortDesc}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Sleek action chevron indicator */}
-                  <div className="flex items-center space-x-1 shrink-0 ml-2">
-                    <span className="text-[9px] text-[#00D1FF] group-hover:text-white transition-colors font-bold uppercase tracking-widest hidden sm:inline">Details</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-cyan-accent group-hover:translate-x-0.5 transition-all" />
+                  {/* Bottom: Specs & CTA */}
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/[0.05]">
+                    <span className="text-[11px] text-white/40 font-mono">Specs: {svc.deliveryTime}</span>
+                    <div className="flex items-center space-x-1 shrink-0">
+                      <span className="text-[10px] text-cyan-accent group-hover:text-white transition-colors font-bold uppercase tracking-widest">Explore specs</span>
+                      <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-cyan-accent group-hover:translate-x-0.5 transition-all" />
+                    </div>
                   </div>
                 </div>
               );
@@ -1798,7 +1814,7 @@ export default function App() {
       </section>
 
       {/* 3. WHY CHOOSE US SECTION (Futuristic SaaS values with stats validation) */}
-      <section id="why-choose-us" className="py-24 border-t border-white/5 relative bg-[#0B0F17]">
+      <section id="why-choose-us" className="py-24 border-t border-white/5 relative bg-[#060913]">
         
         {/* Abstract structural alignment vectors */}
         <div className="absolute top-1/2 left-20 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
@@ -1823,7 +1839,7 @@ export default function App() {
               </p>
 
               {/* Years of expertise stat highlight bento card */}
-              <div id="stat-badge-bento" className="relative p-6 rounded-2xl bg-[#111622] border border-white/10 flex items-center space-x-6 overflow-hidden shadow-xl">
+              <div id="stat-badge-bento" className="relative p-6 rounded-2xl glass-panel border border-white/10 flex items-center space-x-6 overflow-hidden shadow-xl shadow-black/40">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-accent/5 rounded-full blur-2xl pointer-events-none"></div>
                 
                 <div className="flex flex-col text-left">
@@ -1840,7 +1856,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <a 
                   href={`tel:${contactPhone}`} 
-                  className="px-6 py-3 bg-white/[0.03] border border-white/10 rounded-xl hover:border-primary transition-all text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center space-x-2"
+                  className="px-6 py-3 bg-[#111625]/60 hover:bg-white/[0.05] border border-white/10 rounded-xl hover:border-primary transition-all text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center space-x-2 text-white"
                 >
                   <Phone className="w-3.5 h-3.5 text-primary" />
                   <span>Call Us Now</span>
@@ -1865,16 +1881,16 @@ export default function App() {
                 return (
                   <div 
                     key={idx}
-                    className="p-6 rounded-2xl bg-[#111622] border border-white/[0.06] hover:border-primary/40 shadow-lg hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden"
+                    className="p-6 rounded-2xl glass-panel glass-panel-hover shadow-lg hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden"
                   >
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
                     
                     <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 group-hover:border-primary flex items-center justify-center shrink-0 transition-all">
-                        <FeatIcon className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 rounded-lg bg-cyan-accent/15 border border-cyan-accent/30 group-hover:border-cyan-accent flex items-center justify-center shrink-0 transition-all">
+                        <FeatIcon className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_6px_rgba(0,209,255,0.4)]" />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white group-hover:text-primary transition-colors font-display text-left">
+                        <h4 className="text-base font-bold text-white group-hover:text-cyan-accent transition-colors font-display text-left">
                           {feat.title}
                         </h4>
                         <p className="text-white/60 text-xs font-light leading-relaxed text-left">
@@ -1893,7 +1909,7 @@ export default function App() {
       </section>
 
       {/* 4. PORTFOLIO SECTION (Interactive grid with category selectors & specs sheets) */}
-      <section id="portfolio" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
+      <section id="portfolio" className="py-24 border-t border-white/[0.05] relative bg-[#060913]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
@@ -1923,7 +1939,7 @@ export default function App() {
 
           {/* Core Visual Laptop Showcase (Embedding the generated high-quality asset) */}
           <div className="mb-16">
-            <div className="relative bg-[#111622] border border-white/[0.06] rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl">
+            <div className="relative glass-panel border border-white/10 rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl shadow-black/40">
               
               {/* Outer light sheen border shine */}
               <div className="absolute top-0 left-0 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent"></div>
@@ -2027,7 +2043,7 @@ export default function App() {
             {filteredProjects.map((proj) => (
               <div 
                 key={proj.id}
-                className="group relative rounded-2xl bg-[#111622] border border-white/[0.06] hover:border-primary/40 shadow-xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden flex flex-col justify-between"
+                className="group relative rounded-2xl glass-panel glass-panel-hover shadow-xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden flex flex-col justify-between border border-white/[0.05]"
               >
                 {/* Project Image Frame */}
                 <div className="relative aspect-video overflow-hidden bg-[#0B0F17] shrink-0">
@@ -2091,7 +2107,7 @@ export default function App() {
       </section>
 
       {/* 5. TESTIMONIALS SECTION (Interactive slide blocks with visual quotes) */}
-      <section id="testimonials" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
+      <section id="testimonials" className="py-24 border-t border-white/[0.05] relative bg-[#060913]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
@@ -2109,7 +2125,7 @@ export default function App() {
 
           {/* Testimonial Active Slider Display */}
           <div className="max-w-4xl mx-auto">
-            <div className="relative bg-[#111622] border border-white/[0.06] rounded-3xl p-8 sm:p-12 overflow-hidden min-h-[300px] flex flex-col justify-between shadow-2xl">
+            <div className="relative glass-panel border border-white/10 rounded-3xl p-8 sm:p-12 overflow-hidden min-h-[300px] flex flex-col justify-between shadow-2xl shadow-black/40">
               
               {/* Quote marks background vector decoration */}
               <span className="absolute right-8 top-6 text-9xl font-serif text-white/5 font-black leading-none pointer-events-none">“</span>
@@ -2173,7 +2189,7 @@ export default function App() {
       </section>
 
       {/* 6. CONTACT SECTION + INTERACTIVE LEAD GENERATION TRANSMITTER */}
-      <section id="contact" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
+      <section id="contact" className="py-24 border-t border-white/[0.05] relative bg-[#060913]">
         
         {/* Subtle royal backdrop meshes */}
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[140px] pointer-events-none translate-x-1/3"></div>
@@ -2203,14 +2219,14 @@ export default function App() {
               <div className="space-y-4">
                 
                 {/* Contact phone card */}
-                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-center justify-between group transition-all duration-300">
+                <div className="p-4 rounded-xl glass-panel glass-panel-hover flex items-center justify-between group transition-all duration-300">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-cyan-accent/15 border border-cyan-accent/30 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_6px_rgba(0,209,255,0.4)]" />
                     </div>
                     <div>
                       <span className="text-[10px] text-white/40 block uppercase tracking-wider font-semibold">PHONE & WHATSAPP</span>
-                      <a href={`tel:${contactPhone}`} className="text-sm font-bold text-white hover:text-primary transition-colors">
+                      <a href={`tel:${contactPhone}`} className="text-sm font-bold text-white hover:text-cyan-accent transition-colors">
                         {contactPhone}
                       </a>
                     </div>
@@ -2225,14 +2241,14 @@ export default function App() {
                 </div>
 
                 {/* Contact email card */}
-                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-center justify-between group transition-all duration-300">
+                <div className="p-4 rounded-xl glass-panel glass-panel-hover flex items-center justify-between group transition-all duration-300">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-cyan-accent/15 border border-cyan-accent/30 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_6px_rgba(0,209,255,0.4)]" />
                     </div>
                     <div>
                       <span className="text-[10px] text-white/40 block uppercase tracking-wider font-accent font-semibold">BUSINESS EMAIL</span>
-                      <a href={`mailto:${contactEmail}`} className="text-sm font-bold text-white hover:text-primary transition-colors">
+                      <a href={`mailto:${contactEmail}`} className="text-sm font-bold text-white hover:text-cyan-accent transition-colors">
                         {contactEmail}
                       </a>
                     </div>
@@ -2247,23 +2263,23 @@ export default function App() {
                 </div>
 
                 {/* HQ Location representation */}
-                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-start space-x-4 group transition-all duration-300">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/[0.25] flex items-center justify-center shrink-0">
-                    <MapPin className="w-5 h-5 text-primary" />
+                <div className="p-4 rounded-xl glass-panel glass-panel-hover flex items-start space-x-4 group transition-all duration-300">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-accent/15 border border-cyan-accent/30 flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_6px_rgba(0,209,255,0.4)]" />
                   </div>
                   <div>
                     <span className="text-[10px] text-white/40 block uppercase tracking-wider font-semibold">HEADQUARTERS</span>
                     <p className="text-sm font-bold text-white leading-relaxed">
                       Mumbai, Maharashtra, India
                     </p>
-                    <span className="text-[10px] text-primary uppercase tracking-widest font-mono font-semibold block mt-1">AVAILABLE GLOBAL REACH</span>
+                    <span className="text-[10px] text-cyan-accent uppercase tracking-widest font-mono font-semibold block mt-1">AVAILABLE GLOBAL REACH</span>
                   </div>
                 </div>
 
               </div>
 
               {/* Cybernetic Embedded Wireframe Map Graphic */}
-              <div className="relative rounded-2xl border border-white/[0.06] overflow-hidden h-40 bg-[#111622] p-4 flex flex-col justify-between">
+              <div className="relative rounded-2xl border border-white/[0.06] overflow-hidden h-40 glass-panel p-4 flex flex-col justify-between">
                 {/* Styled decorative circuit background vector using SVG patterns */}
                 <div className="absolute inset-0 opacity-10 pointer-events-none">
                   <svg width="100%" height="100%">
@@ -2295,7 +2311,7 @@ export default function App() {
 
             {/* Right Side: High-converting SaaS Contact Form panel */}
             <div className="lg:col-span-7 w-full">
-              <div className="bg-[#111622] border border-white/[0.06] rounded-2xl p-6 sm:p-8 text-left shadow-2xl">
+              <div className="glass-panel border border-white/10 rounded-2xl p-6 sm:p-8 text-left shadow-2xl shadow-black/40">
                 
                 {formState === "success" ? (
                   /* Success Feedback Panel with configured summary values */
@@ -2476,7 +2492,7 @@ export default function App() {
                     <button 
                       type="submit"
                       id="form-submit-btn"
-                      className="w-full py-4 rounded-xl font-bold bg-primary hover:bg-[#005BFF]/95 text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2.5 transition-all shadow-lg shadow-primary/30 active:scale-[0.99] cursor-pointer"
+                      className="w-full py-4 rounded-xl font-bold bg-primary hover:bg-[#431BDB] text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2.5 transition-all shadow-lg shadow-primary/30 active:scale-[0.99] cursor-pointer"
                       disabled={formState === "submitting"}
                     >
                       {formState === "submitting" ? (
@@ -2592,7 +2608,7 @@ export default function App() {
                 />
                 <button 
                   type="submit" 
-                  className="bg-primary hover:bg-[#005BFF]/80 text-white font-bold rounded-r-lg px-4 text-xs transition-colors cursor-pointer"
+                  className="bg-primary hover:bg-[#431BDB] text-white font-bold rounded-r-lg px-4 text-xs transition-colors cursor-pointer"
                 >
                   Join
                 </button>
@@ -3029,7 +3045,7 @@ export default function App() {
                 href={getWhatsAppLink(`Hello Diginfotech Solutions India, I saw your capability details for "${selectedServiceDetail.title}". I'd like to book a quick project consultation.`)}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-[#005BFF]/80 text-white font-bold rounded-xl text-xs uppercase tracking-widest text-center shadow-lg shadow-primary/20 flex items-center justify-center space-x-2 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-[#431BDB] text-white font-bold rounded-xl text-xs uppercase tracking-widest text-center shadow-lg shadow-primary/20 flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Get Started on WhatsApp</span>

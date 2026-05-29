@@ -1,15 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", sans-serif;
-  --font-display: "Poppins", sans-serif;
-  --font-accent: "Montserrat", sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-accent: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   
-  --color-primary: #0088FF;
-  --color-navy-dark: #0B0F17;
-  --color-navy-bg: #111622;
+  --color-primary: #5F35FF; /* Electric Purple */
+  --color-electric-blue: #00D1FF; /* Neon Cyan */
+  --color-navy-dark: #060913; /* Rich dark cosmic slate */
+  --color-navy-bg: #0B0F1E; /* Deep navy deep background */
   --color-cyan-accent: #00D1FF;
-  --color-dark-gray: #1E293B;
+  --color-dark-gray: #111827;
 }
 
 /* Custom premium scrollbar and futuristic text selections */

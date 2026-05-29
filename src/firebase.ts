@@ -1,20 +1,19 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
-import defaultConfig from "../firebase-applet-config.json";
 
-// Read from client-side Vite environment variables if defined, with standard config file fallback
+// Read from client-side Vite environment variables
 const metaEnv = (import.meta as any).env || {};
 const config = {
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || defaultConfig.projectId,
-  appId: metaEnv.VITE_FIREBASE_APP_ID || defaultConfig.appId,
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || defaultConfig.apiKey,
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || "driver-first-4a302",
+  appId: metaEnv.VITE_FIREBASE_APP_ID || "1:590031557700:web:3b69b0a6cb29535a92d811",
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || "AIzaSyBfGQZ3qVCjPhcTUcOpa0feTbTFxBVgMgI",
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || "driver-first-4a302.firebaseapp.com",
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || "driver-first-4a302.firebasestorage.app",
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || "590031557700",
 };
 
 const app = initializeApp(config);
-export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || defaultConfig.firestoreDatabaseId);
+export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)");
 
 export enum OperationType {
   CREATE = "create",
@@ -65,8 +64,9 @@ async function testConnection() {
   try {
     await getDocFromServer(doc(db, "test", "connection"));
   } catch (error) {
+    console.warn("Firebase connection test failed:", error);
     if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.error("Please check your Firebase configuration.");
+      console.warn("Please check your Firebase configuration. Ensure Firestore is enabled in your Firebase console.");
     }
   }
 }
