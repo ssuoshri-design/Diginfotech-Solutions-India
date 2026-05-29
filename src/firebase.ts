@@ -1,9 +1,20 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
-import firebaseConfig from "../firebase-applet-config.json";
+import defaultConfig from "../firebase-applet-config.json";
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Read from client-side Vite environment variables if defined, with standard config file fallback
+const metaEnv = (import.meta as any).env || {};
+const config = {
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || defaultConfig.projectId,
+  appId: metaEnv.VITE_FIREBASE_APP_ID || defaultConfig.appId,
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || defaultConfig.apiKey,
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
+};
+
+const app = initializeApp(config);
+export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || defaultConfig.firestoreDatabaseId);
 
 export enum OperationType {
   CREATE = "create",
