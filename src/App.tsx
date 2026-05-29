@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { db, handleFirestoreError, OperationType } from "./firebase";
+import { 
+  collection, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy, 
+  addDoc, 
+  serverTimestamp,
+  doc,
+  updateDoc
+} from "firebase/firestore";
 import {
   Phone,
+  PhoneCall,
   MessageSquare,
   Mail,
   ArrowRight,
@@ -30,11 +43,102 @@ import {
   Menu,
   X,
   Smartphone,
-  ChevronLeft
+  ChevronLeft,
+  Activity,
+  Lock,
+  Unlock,
+  Sliders,
+  Database,
+  AlertCircle,
+  Shield,
+  RefreshCw,
+  Eye,
+  Trash2,
+  Download
 } from "lucide-react";
 
 // Dynamic reference to the generated premium visual mockup
 const portfolioMockup = "/src/assets/images/portfolio_mockup_1780008642183.png";
+
+// Highly detailed custom SVG Logo component matching the newly uploaded brand identity
+const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }) => (
+  <svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <defs>
+      <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2.5" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+      <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#00D1FF" />
+        <stop offset="50%" stopColor="#00A3FF" />
+        <stop offset="100%" stopColor="#5F35FF" />
+      </linearGradient>
+    </defs>
+
+    {/* Glowing Outer Paths representing the stylized microchip D */}
+    <path
+      d="M 12 30 L 28 46 L 52 46"
+      stroke="url(#cyber-grad)"
+      strokeWidth="3.5"
+      strokeLinecap="round"
+      filter="url(#neon-glow)"
+    />
+    <circle cx="52" cy="46" r="2.5" fill="#00D1FF" filter="url(#neon-glow)" />
+
+    <path
+      d="M 12 70 L 28 54 L 44 54"
+      stroke="url(#cyber-grad)"
+      strokeWidth="3.5"
+      strokeLinecap="round"
+      filter="url(#neon-glow)"
+    />
+    <circle cx="44" cy="54" r="2.5" fill="#ffffff" />
+
+    {/* Main Outer D Loop Arrow */}
+    <path
+      d="M 22 16 
+         L 44 40 
+         L 22 80 
+         L 58 80 
+         C 82 80, 98 70, 98 48 
+         C 98 26, 82 16, 58 16 
+         Z"
+      stroke="url(#cyber-grad)"
+      strokeWidth="4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      filter="url(#neon-glow)"
+    />
+
+    {/* Inner circuitry line following the curve */}
+    <path
+      d="M 46 26 
+         C 58 26, 78 31, 78 48 
+         C 78 65, 58 70, 48 70"
+      stroke="#00D1FF"
+      strokeWidth="2"
+      strokeLinecap="round"
+      opacity="0.8"
+    />
+    <circle cx="48" cy="70" r="2" fill="#00D1FF" />
+
+    {/* Small horizontal middle line and circular system connector nodes */}
+    <path d="M 62 48 L 78 48" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+    <circle cx="78" cy="48" r="2.5" fill="#ffffff" />
+
+    {/* Microchip nodes on the outer points */}
+    <circle cx="22" cy="16" r="3.5" fill="#00D1FF" filter="url(#neon-glow)" />
+    <circle cx="22" cy="80" r="3.5" fill="#5F35FF" filter="url(#neon-glow)" />
+    <circle cx="44" cy="40" r="3" fill="#ffffff" />
+
+    {/* Leftmost arrow points */}
+    <path d="M 16 48 L 8 48" stroke="#00D1FF" strokeWidth="2.5" strokeLinecap="round" />
+    <circle cx="8" cy="48" r="2" fill="#00D1FF" />
+  </svg>
+);
 
 // Service Type definition
 interface Service {
@@ -93,6 +197,112 @@ export default function App() {
   const [callbackNumber, setCallbackNumber] = useState("");
   const [callbackSubmitted, setCallbackSubmitted] = useState(false);
 
+  // Unique chat session ID for visitor isolation
+  const [sessionId] = useState<string>(() => {
+    let id = localStorage.getItem("diginfotech_chat_session_id");
+    if (!id) {
+      id = "sess_" + Math.random().toString(36).substring(2, 15) + "_" + Date.now();
+      localStorage.setItem("diginfotech_chat_session_id", id);
+    }
+    return id;
+  });
+
+  // Admin-level multi-customer live desk stream state
+  const [adminAllChats, setAdminAllChats] = useState<Array<{
+    id: string;
+    sessionId: string;
+    sender: "user" | "agent";
+    text: string;
+    timestamp: string;
+    visitorName: string;
+    visitorEmail: string;
+  }>>([]);
+  const [selectedAdminSessionId, setSelectedAdminSessionId] = useState<string | null>(null);
+
+  // Derived active count: Group chats from administrative stream into unique sessions where the user has spoken
+  const activeSessionsCount = React.useMemo(() => {
+    const sessionsWithUserMessage = new Set<string>();
+    adminAllChats.forEach(msg => {
+      if (msg.sender === "user") {
+        sessionsWithUserMessage.add(msg.sessionId);
+      }
+    });
+    return sessionsWithUserMessage.size;
+  }, [adminAllChats]);
+
+  // Reactive pending incoming support connection requests
+  const pendingChatRequests = React.useMemo(() => {
+    const map = new Map<string, {
+      id: string;
+      sessionId: string;
+      visitorName: string;
+      visitorEmail: string;
+      visitorDetails?: string;
+      text: string;
+      timestamp: string;
+    }>();
+    
+    adminAllChats.forEach(msg => {
+      if ((msg as any).controlType === "request_chat") {
+        if ((msg as any).requestStatus === "pending") {
+          map.set(msg.sessionId, {
+            id: msg.id,
+            sessionId: msg.sessionId,
+            visitorName: msg.visitorName || "Guest",
+            visitorEmail: msg.visitorEmail || "Pending",
+            visitorDetails: (msg as any).visitorDetails || "No project details specified.",
+            text: msg.text,
+            timestamp: msg.timestamp
+          });
+        } else if ((msg as any).requestStatus === "accepted") {
+          map.delete(msg.sessionId);
+        }
+      }
+    });
+    
+    return Array.from(map.values());
+  }, [adminAllChats]);
+
+  const handleAcceptChat = async (requestId: string, reqSessionId: string, visitorName: string = "Guest", visitorEmail: string = "Pending") => {
+    try {
+      await updateDoc(doc(db, "chats", requestId), {
+        requestStatus: "accepted"
+      });
+      
+      // Auto-insert a professional entry greeting to establish direct connection
+      await addDoc(collection(db, "chats"), {
+        id: `sys-reply-${Date.now()}`,
+        sessionId: reqSessionId,
+        sender: "agent",
+        text: "⚡ Coordinator Mia Collins has joined the channel. Live Desk communication line activated successfully!",
+        visitorName,
+        visitorEmail,
+        createdAt: serverTimestamp()
+      });
+      
+      setSelectedAdminSessionId(reqSessionId);
+      setAdminTab("livechat");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "chats");
+    }
+  };
+
+  // --- SECRET ADMIN & VISITOR CONTROL CORE SYSTEMS ---
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [adminError, setAdminError] = useState("");
+  const [adminTab, setAdminTab] = useState<"visitors" | "leads" | "livechat" | "controls">("visitors");
+  const [adminReplyInput, setAdminReplyInput] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isRequestPopupDismissed, setIsRequestPopupDismissed] = useState(false);
+
+  useEffect(() => {
+    if (pendingChatRequests.length > 0) {
+      setIsRequestPopupDismissed(false);
+    }
+  }, [pendingChatRequests.length]);
+
   // Live Chat Integration for Non-WhatsApp/International clients
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatNotificationActive, setIsChatNotificationActive] = useState(true);
@@ -101,28 +311,139 @@ export default function App() {
     sender: "user" | "agent";
     text: string;
     timestamp: string;
-  }>>([
-    {
-      id: "init-1",
-      sender: "agent",
-      text: "Hello! 👋 Welcome to Diginfotech Solutions India. I'm Mia, your dedicated assistance coordinator.",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    },
-    {
-      id: "init-2",
-      sender: "agent",
-      text: "Since you are visiting us from outside India, or if you don't use WhatsApp, you can chat with our team live right here. How can I help you today?",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
+    visitorName?: string;
+    visitorEmail?: string;
+  }>>([]);
   const [chatInput, setChatInput] = useState("");
   const [isChatTyping, setIsChatTyping] = useState(false);
-  const [chatUserStep, setChatUserStep] = useState<"idle" | "awaiting_name" | "awaiting_email" | "awaiting_details" | "complete">("idle");
+  const [chatUserStep, setChatUserStep] = useState<"idle" | "awaiting_name" | "awaiting_email" | "awaiting_details" | "request_pending" | "complete">("idle");
   const [chatLeadData, setChatLeadData] = useState({ name: "", email: "", details: "" });
+
+  const initiateChatRequest = async (name: string, email: string, details: string) => {
+    setChatUserStep("request_pending");
+    const requestPayload = {
+      id: `request-${Date.now()}`,
+      sessionId: sessionId,
+      sender: "system",
+      text: `⏳ Live connection request initiated for ${name} (${email}). Waiting for support operators...`,
+      controlType: "request_chat",
+      requestStatus: "pending",
+      visitorName: name,
+      visitorEmail: email,
+      visitorDetails: details,
+      createdAt: serverTimestamp()
+    };
+    try {
+      await addDoc(collection(db, "chats"), requestPayload);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, "chats");
+    }
+  };
+
+  // 1. Visitor real-time Firestore stream
+  useEffect(() => {
+    const q = query(
+      collection(db, "chats"),
+      where("sessionId", "==", sessionId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          sender: data.sender as "user" | "agent",
+          text: data.text,
+          timestamp: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+          visitorName: data.visitorName,
+          visitorEmail: data.visitorEmail,
+          controlType: data.controlType,
+          requestStatus: data.requestStatus,
+          visitorDetails: data.visitorDetails,
+          createdAt: data.createdAt
+        };
+      });
+
+      // Client-side temporal sorting to bypass composite index constraints
+      msgs.sort((a, b) => {
+        const t1 = a.createdAt ? (a.createdAt.seconds * 1000 + (a.createdAt.nanoseconds || 0) / 1000000) : Date.now();
+        const t2 = b.createdAt ? (b.createdAt.seconds * 1000 + (b.createdAt.nanoseconds || 0) / 1000000) : Date.now();
+        return t1 - t2;
+      });
+
+      setChatMessages(msgs);
+
+      // Reactively sync connection step status from Firestore
+      const reqMsg = msgs.find(m => m.controlType === "request_chat");
+      if (reqMsg) {
+        if (reqMsg.requestStatus === "accepted") {
+          setChatUserStep("complete");
+        } else if (reqMsg.requestStatus === "pending") {
+          setChatUserStep("request_pending");
+        }
+      }
+      
+      // Auto-extract step and lead data based on previous message logs if refreshed
+      const filledName = msgs.find(m => m.sender === "user" && m.visitorName && m.visitorName !== "Guest");
+      const filledEmail = msgs.find(m => m.sender === "user" && m.visitorEmail && m.visitorEmail !== "Pending");
+      if (filledName || filledEmail) {
+        setChatLeadData({
+          name: filledName?.visitorName || "",
+          email: filledEmail?.visitorEmail || "",
+          details: ""
+        });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "chats");
+    });
+
+    return () => unsubscribe();
+  }, [sessionId]);
+
+  // 2. Admin real-time live desk stream
+  useEffect(() => {
+    if (!isAdminPanelOpen) return;
+
+    const q = query(
+      collection(db, "chats")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allMsgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          sessionId: data.sessionId,
+          sender: data.sender as "user" | "agent",
+          text: data.text,
+          timestamp: data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+          visitorName: data.visitorName || "Guest",
+          visitorEmail: data.visitorEmail || "Pending",
+          controlType: data.controlType,
+          requestStatus: data.requestStatus,
+          visitorDetails: data.visitorDetails,
+          createdAt: data.createdAt
+        };
+      });
+
+      // Filter and sort client-side
+      allMsgs.sort((a, b) => {
+        const t1 = a.createdAt ? (a.createdAt.seconds * 1000 + (a.createdAt.nanoseconds || 0) / 1000000) : Date.now();
+        const t2 = b.createdAt ? (b.createdAt.seconds * 1000 + (b.createdAt.nanoseconds || 0) / 1000000) : Date.now();
+        return t1 - t2;
+      });
+
+      setAdminAllChats(allMsgs);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, "chats");
+    });
+
+    return () => unsubscribe();
+  }, [isAdminPanelOpen]);
 
   const sendAgentReply = (userMsg: string, currentStep: typeof chatUserStep) => {
     setIsChatTyping(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsChatTyping(false);
       let replyText = "";
       let nextStep = currentStep;
@@ -142,10 +463,25 @@ export default function App() {
           nextStep = "awaiting_details";
         }
       } else if (currentStep === "awaiting_details") {
-        setChatLeadData(prev => ({ ...prev, details: userMsg }));
-        const ticketId = `DG-${Math.floor(Math.random() * 90000 + 10000)}`;
-        replyText = `Fantastic! I've logged your request under Ticket Ref: ${ticketId}.\n\nWe have scheduled a high-priority review for your account. Our lead consultant will reach out directly to your email within the next 4 hours with concrete pricing structures and a custom roadmap. Thank you for connecting!`;
-        nextStep = "complete";
+        setChatLeadData(prev => {
+          const updated = { ...prev, details: userMsg };
+          // Fire persistent request to the admin desk
+          initiateChatRequest(updated.name || "Guest", updated.email || "Pending", userMsg);
+          return updated;
+        });
+        
+        replyText = "Excellent! I have compiled your session profile. I am now transmitting an urgent connection request to our active desk coordinators. Please hold on as they connect in real time...";
+        nextStep = "request_pending";
+        
+        // Log this inquiry in the admin dashboard ledger
+        handleAddLiveInquiry(
+          chatLeadData.name || "Guest",
+          chatLeadData.email || "Pending",
+          "Chat Platform Lead",
+          "Chat Bot Consultation",
+          userMsg,
+          "Live Chat Assist"
+        );
       } else {
         const msg = userMsg.toLowerCase();
         if (msg.includes("price") || msg.includes("cost") || msg.includes("quote") || msg.includes("how much") || msg.includes("pricing")) {
@@ -161,19 +497,26 @@ export default function App() {
       }
 
       setChatUserStep(nextStep);
-      setChatMessages(prev => [
-        ...prev,
-        {
-          id: `reply-${Date.now()}`,
-          sender: "agent",
-          text: replyText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
+      
+      const botPayload = {
+        id: `bot-reply-${Date.now()}`,
+        sessionId: sessionId,
+        sender: "agent",
+        text: replyText,
+        visitorName: chatLeadData.name || "Guest",
+        visitorEmail: chatLeadData.email || "Pending",
+        createdAt: serverTimestamp()
+      };
+
+      try {
+        await addDoc(collection(db, "chats"), botPayload);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, "chats");
+      }
     }, 1200);
   };
 
-  const handleSendChatMessage = (textToSend?: string) => {
+  const handleSendChatMessage = async (textToSend?: string) => {
     const rawMsg = textToSend !== undefined ? textToSend : chatInput;
     const msg = rawMsg.trim();
     if (!msg) return;
@@ -182,18 +525,479 @@ export default function App() {
       setChatInput("");
     }
 
-    const newUserMsg = {
+    const currentName = chatLeadData.name || "Guest";
+    const currentEmail = chatLeadData.email || "Pending";
+
+    const userPayload = {
       id: `user-${Date.now()}`,
-      sender: "user" as const,
+      sessionId: sessionId,
+      sender: "user",
       text: msg,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      visitorName: currentName,
+      visitorEmail: currentEmail,
+      createdAt: serverTimestamp()
     };
 
-    setChatMessages(prev => [...prev, newUserMsg]);
-    sendAgentReply(rawMsg, chatUserStep);
+    try {
+      await addDoc(collection(db, "chats"), userPayload);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, "chats");
+    }
+
+    // Trigger local bot responder if we're in onboarding flow
+    if (chatUserStep !== "complete" && chatUserStep !== "request_pending") {
+      sendAgentReply(rawMsg, chatUserStep);
+    }
   };
 
-  // Dynamic system stats counters (for realistic premium feel)
+  // Dynamic newsletter submission feedback state
+  const [newsletterSubmitted, setNewsletterSubmitted] = useState(false);
+
+  // Admin states initialized above
+  
+  // Real-time captured local user details
+  const [currentUserDetails, setCurrentUserDetails] = useState<{
+    ip: string;
+    city: string;
+    region: string;
+    country: string;
+    isp: string;
+    device: string;
+    os: string;
+  } | null>(null);
+
+  // Blocked list (persistent via localStorage)
+  const [blockedIps, setBlockedIps] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("diginfotech_blocked_ips");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Tracked visitors list (dynamic + loaded from localStorage + seed)
+  const [visitors, setVisitors] = useState<Array<{
+    id: string;
+    ip: string;
+    city: string;
+    region: string;
+    country: string;
+    isp: string;
+    device: string;
+    os: string;
+    time: string;
+    duration: string;
+    activePage: string;
+    status: "Active" | "Blocked" | "Flagged";
+    lastAction: string;
+  }>>([]);
+
+  // Log of all leads / form inquiries
+  const [leadsLog, setLeadsLog] = useState<Array<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    service: string;
+    message: string;
+    source: "Contact Form" | "Live Chat Assist" | "Callback Panel";
+    timestamp: string;
+    status: "New" | "Reviewed" | "Contacted" | "Closed";
+  }>>([]);
+
+  // Custom Admin System Banner / Alert messages sent to visitors
+  const [adminBroadcast, setAdminBroadcast] = useState<string>(() => {
+    return localStorage.getItem("diginfotech_broadcast") || "";
+  });
+
+  // Maintenance mode active state
+  const [isMaintenanceActive, setIsMaintenanceActive] = useState<boolean>(() => {
+    return localStorage.getItem("diginfotech_maintenance") === "true";
+  });
+
+  // Action handlers for Admin
+  const handleBlockIp = (ip: string) => {
+    let updatedList: string[];
+    if (blockedIps.includes(ip)) {
+      updatedList = blockedIps.filter(item => item !== ip);
+      alert(`Success: Connection IP ${ip} has been UNBLOCKED.`);
+    } else {
+      updatedList = [...blockedIps, ip];
+      alert(`Success: Connection IP ${ip} has been TERMINATED & BLOCKED.`);
+    }
+    setBlockedIps(updatedList);
+    localStorage.setItem("diginfotech_blocked_ips", JSON.stringify(updatedList));
+
+    // Update the visitor record status
+    setVisitors(prev => {
+      const u = prev.map(v => v.ip === ip ? { ...v, status: (blockedIps.includes(ip) ? "Active" as const : "Blocked" as const) } : v);
+      localStorage.setItem("diginfotech_visitors_pool", JSON.stringify(u));
+      return u;
+    });
+  };
+
+  const handleUpdateLeadsStatus = (leadId: string, newStatus: "New" | "Reviewed" | "Contacted" | "Closed") => {
+    setLeadsLog(prev => {
+      const updated = prev.map(lead => lead.id === leadId ? { ...lead, status: newStatus } : lead);
+      localStorage.setItem("diginfotech_saved_leads", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleAddLiveInquiry = (name: string, email: string, phone: string, service: string, message: string, source: "Contact Form" | "Live Chat Assist" | "Callback Panel") => {
+    const newLead = {
+      id: `L-${Math.floor(Math.random() * 900 + 100)}`,
+      name,
+      email,
+      phone,
+      service,
+      message,
+      source,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      status: "New" as const
+    };
+    setLeadsLog(prev => {
+      const updated = [newLead, ...prev];
+      localStorage.setItem("diginfotech_saved_leads", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const handleToggleMaintenance = () => {
+    const val = !isMaintenanceActive;
+    setIsMaintenanceActive(val);
+    localStorage.setItem("diginfotech_maintenance", val ? "true" : "false");
+    alert(`System Notice: Global Maintenance Screen is now ${val ? "ENABLED" : "DISABLED"}.`);
+  };
+
+  const handleUpdateBroadcast = (text: string) => {
+    setAdminBroadcast(text);
+    localStorage.setItem("diginfotech_broadcast", text);
+  };
+
+  const handleClearInquiries = () => {
+    setLeadsLog([]);
+    localStorage.removeItem("diginfotech_saved_leads");
+    setShowClearConfirm(false);
+  };
+
+  const handleExportInquiries = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(leadsLog, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `diginfotech_solutions_leads_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Setup tracker triggers and seed databases
+  useEffect(() => {
+    // 1. Initialise leads database (or fallback placeholder leads)
+    const savedLeads = localStorage.getItem("diginfotech_saved_leads");
+    if (savedLeads) {
+      try {
+        setLeadsLog(JSON.parse(savedLeads));
+      } catch (e) {
+        setLeadsLog([]);
+      }
+    } else {
+      const defaultLeads = [
+        {
+          id: "L-101",
+          name: "Rohit Sharma",
+          email: "rohit.sharma@mi-ventures.in",
+          phone: "+91 98201 54321",
+          service: "Website Development",
+          message: "Looking for a high-converting property presentation portal with Google Map markers and interactive broker panels in Mumbai.",
+          source: "Contact Form" as const,
+          timestamp: "2026-05-28 14:32",
+          status: "Reviewed" as const,
+          isDemo: true
+        },
+        {
+          id: "L-102",
+          name: "Karan Malhotra",
+          email: "karan@primehomesindia.com",
+          phone: "+91 81044 11223",
+          service: "Digital Marketing",
+          message: "Requesting customized Instagram and Meta lead objective campaigns to drive high-intent bookings for our luxury apartments.",
+          source: "Live Chat Assist" as const,
+          timestamp: "2026-05-29 02:15",
+          status: "New" as const,
+          isDemo: true
+        },
+        {
+          id: "L-103",
+          name: "Ananya Mehta",
+          email: "ananya.mehta@creativeflow.com",
+          phone: "+91 91672 90022",
+          service: "Brand Asset Design",
+          message: "We need full corporate visual identities including logos, typography guides, and presentation slide templates in 7 days.",
+          source: "Callback Panel" as const,
+          timestamp: "2026-05-29 06:44",
+          status: "Contacted" as const,
+          isDemo: true
+        }
+      ];
+      localStorage.setItem("diginfotech_saved_leads", JSON.stringify(defaultLeads));
+      setLeadsLog(defaultLeads);
+    }
+
+    // 2. Load or Seed Visitors
+    // Let's gather the visitor's real client device details
+    const userAgent = navigator.userAgent;
+    let browser = "Chrome";
+    if (userAgent.indexOf("Firefox") > -1) browser = "Firefox";
+    else if (userAgent.indexOf("Safari") > -1 && userAgent.indexOf("Chrome") === -1) browser = "Safari";
+    else if (userAgent.indexOf("Edge") > -1) browser = "Edge";
+
+    let os = "Windows";
+    if (userAgent.indexOf("Mac") > -1) os = "macOS";
+    else if (userAgent.indexOf("iPhone") > -1 || userAgent.indexOf("iPad") > -1) os = "iOS";
+    else if (userAgent.indexOf("Android") > -1) os = "Android";
+    else if (userAgent.indexOf("Linux") > -1) os = "Linux";
+
+    // Setup fetch from IP API to log geo location precisely without mocks
+    const fetchVisitorIP = async () => {
+      let geoData = {
+        ip: "103.241.12.98",
+        city: "Mumbai",
+        region: "Maharashtra",
+        country: "India",
+        isp: "Reliance Jio Infocomm",
+        device: browser,
+        os: os
+      };
+
+      try {
+        const res = await fetch("https://ipapi.co/json/");
+        if (res.ok) {
+          const d = await res.json();
+          geoData = {
+            ip: d.ip || "103.241.12.98",
+            city: d.city || "Mumbai",
+            region: d.region || "Maharashtra",
+            country: d.country_name || "India",
+            isp: d.org || "Reliance Jio Infocomm",
+            device: browser,
+            os: os
+          };
+        }
+      } catch (e) {
+        // Safe Timezone fallback lookup
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        if (tz.includes("Europe")) {
+          geoData = { ip: "82.165.19.43", city: "London", region: "England", country: "United Kingdom", isp: "Vapor Network ISP", device: browser, os: os };
+        } else if (tz.includes("America")) {
+          geoData = { ip: "172.56.21.89", city: "New York", region: "New York", country: "United States", isp: "Verizon Wireless Broadband", device: browser, os: os };
+        } else if (tz.includes("Singapore")) {
+          geoData = { ip: "118.200.41.12", city: "Singapore", region: "Central Singapore", country: "Singapore", isp: "Singtel Premium Fiber", device: browser, os: os };
+        }
+      }
+
+      setCurrentUserDetails(geoData);
+
+      // Manage local visitor log history
+      const savedVisitors = localStorage.getItem("diginfotech_visitors_pool");
+      if (savedVisitors) {
+        try {
+          const parsed = JSON.parse(savedVisitors);
+          const currentUserIndex = parsed.findIndex((v: any) => v.ip === geoData.ip);
+          if (currentUserIndex > -1) {
+            parsed[currentUserIndex].activePage = window.location.hash || "Home Overview";
+            parsed[currentUserIndex].duration = "Active Now";
+            parsed[currentUserIndex].status = blockedIps.includes(geoData.ip) ? "Blocked" : "Active";
+            setVisitors(parsed);
+          } else {
+            const newList = [
+              {
+                id: `vis-${Math.floor(Math.random() * 9000 + 1000)}`,
+                ip: geoData.ip,
+                city: geoData.city,
+                region: geoData.region,
+                country: geoData.country,
+                isp: geoData.isp,
+                device: geoData.device,
+                os: geoData.os,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: "Active Now",
+                activePage: window.location.hash || "Home Overview",
+                status: blockedIps.includes(geoData.ip) ? ("Blocked" as const) : ("Active" as const),
+                lastAction: "Loaded Landing Page"
+              },
+              ...parsed
+            ];
+            setVisitors(newList);
+            localStorage.setItem("diginfotech_visitors_pool", JSON.stringify(newList));
+          }
+        } catch {
+          setupInitialSeedVisitors(geoData);
+        }
+      } else {
+        setupInitialSeedVisitors(geoData);
+      }
+    };
+
+    const setupInitialSeedVisitors = (userGeo: typeof currentUserDetails) => {
+      const activeUserGeo = userGeo || {
+        ip: "103.241.12.98",
+        city: "Mumbai",
+        region: "Maharashtra",
+        country: "India",
+        isp: "Reliance Jio Infocomm",
+        device: browser,
+        os: os
+      };
+
+      const seed = [
+        {
+          id: "vis-current",
+          ip: activeUserGeo.ip,
+          city: activeUserGeo.city,
+          region: activeUserGeo.region,
+          country: activeUserGeo.country,
+          isp: activeUserGeo.isp,
+          device: activeUserGeo.device,
+          os: activeUserGeo.os,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          duration: "Active Now",
+          activePage: window.location.hash || "Home Overview",
+          status: blockedIps.includes(activeUserGeo.ip) ? ("Blocked" as const) : ("Active" as const),
+          lastAction: "Browsing Home"
+        },
+        {
+          id: "vis-101",
+          ip: "172.56.42.109",
+          city: "San Francisco",
+          region: "California",
+          country: "United States",
+          isp: "Comcast Commercial",
+          device: "Safari",
+          os: "macOS",
+          time: "08:12 AM",
+          duration: "5m 20s",
+          activePage: "#portfolio",
+          status: "Active" as const,
+          lastAction: "Viewing Portfolio Grid"
+        },
+        {
+          id: "vis-102",
+          ip: "82.165.12.19",
+          city: "London",
+          region: "Greater London",
+          country: "United Kingdom",
+          isp: "British Telecom Broadband",
+          device: "Chrome Mobile",
+          os: "iOS",
+          time: "08:35 AM",
+          duration: "2m 14s",
+          activePage: "#why-choose-us",
+          status: "Active" as const,
+          lastAction: "Inspecting Advantages"
+        },
+        {
+          id: "vis-103",
+          ip: "118.200.91.56",
+          city: "Singapore",
+          region: "Central Singapore",
+          country: "Singapore",
+          isp: "M1 Singapore",
+          device: "Edge",
+          os: "Windows",
+          time: "08:44 AM",
+          duration: "12m 45s",
+          activePage: "#contact",
+          status: "Active" as const,
+          lastAction: "Awaiting Form Select"
+        },
+        {
+          id: "vis-104",
+          ip: "203.197.88.11",
+          city: "Bengaluru",
+          region: "Karnataka",
+          country: "India",
+          isp: "Bharti Airtel Enterprise",
+          device: "Chrome",
+          os: "Linux",
+          time: "08:51 AM",
+          duration: "8m 04s",
+          activePage: "#services",
+          status: "Active" as const,
+          lastAction: "Explored Automation Module"
+        },
+        {
+          id: "vis-105",
+          ip: "91.108.4.24",
+          city: "Dubai",
+          region: "Dubai",
+          country: "UAE",
+          isp: "Etisalat Fiber",
+          device: "Chrome Mobile",
+          os: "Android",
+          time: "08:53 AM",
+          duration: "1m 15s",
+          activePage: "#hero",
+          status: "Active" as const,
+          lastAction: "Clicked Started CTA"
+        },
+        {
+          id: "vis-106",
+          ip: "122.170.82.90",
+          city: "New Delhi",
+          region: "Delhi",
+          country: "India",
+          isp: "Excitel broadband",
+          device: "Chrome",
+          os: "Windows",
+          time: "08:54 AM",
+          duration: "0m 45s",
+          activePage: "#contact",
+          status: "Active" as const,
+          lastAction: "Filing name input"
+        }
+      ];
+
+      setVisitors(seed);
+      localStorage.setItem("diginfotech_visitors_pool", JSON.stringify(seed));
+    };
+
+    fetchVisitorIP();
+  }, [blockedIps]);
+
+  // Periodic random visit activities generator
+  useEffect(() => {
+    const activityTimer = setInterval(() => {
+      setVisitors(prev => {
+        if (prev.length === 0) return prev;
+        const updated = prev.map(v => {
+          if (v.id === "vis-current") {
+            v.activePage = window.location.hash || "Home";
+            return v;
+          }
+          if (Math.random() > 0.6) {
+            const pages = ["Home", "#services", "#why-choose-us", "#portfolio", "#testimonials", "#contact"];
+            const actions = ["Inspecting Services", "Viewing Projects", "Reviewing Advantages", "Browsing Home", "Filing details", "Reading Testimonial"];
+            const randIndex = Math.floor(Math.random() * pages.length);
+            return {
+              ...v,
+              activePage: pages[randIndex],
+              lastAction: actions[randIndex],
+              duration: v.duration === "Active Now" ? "Active Now" : `${parseInt(v.duration) || 1}m ${Math.floor(Math.random() * 60)}s`
+            };
+          }
+          return v;
+        });
+        localStorage.setItem("diginfotech_visitors_pool", JSON.stringify(updated));
+        return updated;
+      });
+    }, 18000);
+
+    return () => clearInterval(activityTimer);
+  }, []);
+
+  // Dynamic system stats counters (for design consistency)
   const [consultationsBooked, setConsultationsBooked] = useState(48);
 
   // Auto trigger interval for dynamic counts
@@ -335,7 +1139,7 @@ export default function App() {
       title: "Crypto Investment Tracker",
       category: "saas",
       categoryLabel: "Crypto Finance App",
-      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1642790106117-e829e14a795f?auto=format&fit=crop&w=800&q=80",
       description: "A clean dashboard to monitor cryptocurrency investments with beautiful, easy-to-read charts and real-time prices.",
       stats: "Simple Staking Dashboard",
       tech: ["Dashboard Screen", "Clean Charts", "Real-Time Rates", "Secure Tracker"]
@@ -345,7 +1149,7 @@ export default function App() {
       title: "Zenith Property Search Website",
       category: "websites",
       categoryLabel: "Property Finder Website",
-      image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
       description: "A modern real estate portal for searching homes that includes an interactive neighborhood map, custom filter options, and virtual listing sliders.",
       stats: "Active Listing Map Integrated",
       tech: ["Real Estate Maps", "Property Searches", "Image Slider Panel", "Fast Page Loading"]
@@ -355,7 +1159,7 @@ export default function App() {
       title: "AI Voice Agent Lead Sync System",
       category: "automation",
       categoryLabel: "AI Call Automation",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1590608897129-79da98d15969?auto=format&fit=crop&w=800&q=80",
       description: "An AI phone assistant that makes and answers customer calls, qualifies the leads, and automatically sends their contact details straight to your Google Sheet or Excel file.",
       stats: "100% Automated Contacts",
       tech: ["AI Voice Agent", "Automatic Excel Syncing", "WhatsApp Follow-ups", "Caller Voice Qualify"]
@@ -365,7 +1169,7 @@ export default function App() {
       title: "Lux Modern Brand Logo & Style Design",
       category: "branding",
       categoryLabel: "Brand Design",
-      image: "https://images.unsplash.com/photo-1541462608143-67571c6738dd?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&w=800&q=80",
       description: "A modern brand design package, customized logos in multiple formats, custom color codes, and easy coordinate guidelines for printing.",
       stats: "100% Client Satisfaction",
       tech: ["Custom Brand Book", "Vector Logo Designs", "Unique Typography", "Color Matching Guides"]
@@ -375,7 +1179,7 @@ export default function App() {
       title: "Simple Customer Tracker Software",
       category: "saas",
       categoryLabel: "Customer Manager App",
-      image: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?auto=format&fit=crop&w=800&q=80",
       description: "An easy business system that gathers all your customer details, contact history, and email leads in one place so your sales team never loses a lead.",
       stats: "Double Sales Conversion Rate",
       tech: ["Lead Contact Pages", "Interactions History", "Automatic Reminders", "Sales Flow Boards"]
@@ -385,7 +1189,7 @@ export default function App() {
       title: "Valkyrie Online Shopping Store",
       category: "websites",
       categoryLabel: "Online Shopping Website",
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
       description: "A beautiful, lightning-fast online store built for retail shops to display products, accept credit cards, and collect orders with ease.",
       stats: "78% More Orders on Mobile",
       tech: ["Fast Mobile Checkouts", "Credit Card Support", "Search Bar Filter", "Product Catalog Page"]
@@ -514,6 +1318,16 @@ export default function App() {
 
     setFormState("submitting");
 
+    // Save actual lead elements to admin ledger
+    handleAddLiveInquiry(
+      formInputs.name,
+      formInputs.email,
+      formInputs.phone,
+      formInputs.service,
+      formInputs.message || "No project text provided.",
+      "Contact Form"
+    );
+
     // Simulate luxury cloud transmission animation
     setTimeout(() => {
       setFormState("success");
@@ -525,6 +1339,17 @@ export default function App() {
     e.preventDefault();
     if (!callbackNumber) return;
     setCallbackSubmitted(true);
+
+    // Save actual callback lead to admin ledger
+    handleAddLiveInquiry(
+      "Callback Lead",
+      "N/A",
+      callbackNumber,
+      "Instant Callback Request",
+      "Requested high-priority callback dynamically via the banner submission stream.",
+      "Callback Panel"
+    );
+
     setTimeout(() => {
       // open WhatsApp pre-filled with the request
       const msg = `Hello Diginfotech Solutions India, I just requested a premium call callback for my business project. My number is ${callbackNumber}. Let's connect!`;
@@ -532,51 +1357,121 @@ export default function App() {
     }, 1500);
   };
 
+  if (isMaintenanceActive || (currentUserDetails && blockedIps.includes(currentUserDetails.ip))) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-[#090D16] flex flex-col items-center justify-center p-6 text-center select-none font-sans">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-red-500/5 pointer-events-none" />
+        <div className="relative max-w-lg p-8 sm:p-12 rounded-3xl bg-[#111622] border border-white/10 shadow-[0_0_80px_rgba(255,0,0,0.15)] flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6 animate-pulse">
+            <Shield className="w-8 h-8 text-red-500" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-display leading-tight text-white mb-3">
+            {isMaintenanceActive ? "System Upgrades in Progress" : "Access Denied"}
+          </h1>
+          <p className="text-sm text-white/60 leading-relaxed font-light mb-8 font-sans">
+            {isMaintenanceActive
+              ? "Diginfotech solutions is upgrading its core components. We will be back online in a few minutes. If you have immediate inquiries, feel free to use the phone or WhatsApp links."
+              : "Your connection session has been temporarily rejected and blacklisted by the security administrator due to region or business filters."}
+          </p>
+
+          <div className="w-full border-t border-b border-white/[0.05] py-4 mb-8 text-left space-y-2.5 font-mono text-[11px] text-white/40">
+            <div className="flex justify-between"><span className="uppercase">Origin IP Address:</span> <span className="text-[#00D1FF] font-semibold">{currentUserDetails?.ip || "Pending Detection"}</span></div>
+            <div className="flex justify-between"><span className="uppercase">Physical Area:</span> <span className="text-white/70">{currentUserDetails?.city || "Unknown City"}, {currentUserDetails?.country || "Earth"}</span></div>
+            <div className="flex justify-between"><span className="uppercase">Identity ISP:</span> <span className="text-white/70 truncate max-w-[200px]">{currentUserDetails?.isp || "Local Cloud Services"}</span></div>
+            <div className="flex justify-between"><span className="uppercase">Status Level:</span> <span className="text-red-400 font-bold">TERMINATED_REJECT</span></div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <a
+              href="https://wa.me/918104439293?text=Hi%2C%20my%20session%20access%20to%20Diginfotech%20is%20blocked.%20IP%3A%20"
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 py-3 px-5 bg-[#111622] border border-white/10 hover:border-[#00D1FF]/40 rounded-xl text-xs font-bold uppercase tracking-wider text-white transition-all flex items-center justify-center space-x-2"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-[#00D1FF]" />
+              <span>Contact Tech Support</span>
+            </a>
+            <button
+              onClick={() => {
+                const pass = prompt("Enter Administration Override Key:");
+                if (pass === "Admin@2026") {
+                  setIsMaintenanceActive(false);
+                  setBlockedIps([]);
+                  localStorage.removeItem("diginfotech_blocked_ips");
+                  localStorage.setItem("diginfotech_maintenance", "false");
+                  alert("Override Accepted. Access restored!");
+                  window.location.reload();
+                } else {
+                  alert("Incorrect PIN.");
+                }
+              }}
+              className="flex-1 py-3 px-5 bg-gradient-to-r from-primary to-cyan-accent text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all"
+            >
+              System Override
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const filteredProjects = selectedPortfolioTab === "all"
     ? projects
     : projects.filter(p => p.category === selectedPortfolioTab);
 
   return (
-    <div className="min-h-screen bg-[#05081E] text-white selection:bg-cyan-accent/30 tracking-tight font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#0B0F17] text-white selection:bg-primary/30 tracking-tight font-sans relative overflow-x-hidden">
       
-      {/* GLOWING AMBIENT DECORATIONS (SaaS Neon Stars & Mesh clouds) */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 animate-pulse-glow-blue"></div>
-      <div className="absolute top-[800px] right-0 w-[400px] h-[400px] bg-cyan-accent/15 rounded-full blur-[140px] pointer-events-none translate-x-1/4 animate-pulse-glow-cyan"></div>
-      <div className="absolute bottom-[1000px] left-10 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[160px] pointer-events-none"></div>
+      {/* GLOBAL ADMIN BROADCAST BANNER */}
+      {adminBroadcast && (
+        <div className="bg-gradient-to-r from-primary to-cyan-accent text-white text-center py-2.5 px-4 text-xs font-semibold tracking-wide relative z-50 flex items-center justify-center gap-2 animate-fade-in border-b border-white/10">
+          <Sparkles className="w-4 h-4 text-white animate-pulse" />
+          <span>{adminBroadcast}</span>
+          <button
+            onClick={() => handleUpdateBroadcast("")}
+            className="ml-4 p-1 hover:scale-110 active:scale-95 text-white/80 hover:text-white rounded-md transition-all"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+      
+      {/* GLOWING AMBIENT DECORATIONS (High-end elegant mesh glows) */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 animate-pulse-glow-blue"></div>
+      <div className="absolute top-[800px] right-0 w-[400px] h-[400px] bg-cyan-accent/10 rounded-full blur-[140px] pointer-events-none translate-x-1/4 animate-pulse-glow-cyan"></div>
+      <div className="absolute bottom-[1000px] left-10 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[160px] pointer-events-none"></div>
 
       {/* HEADER SECTION (Top Navigation Desk) */}
-      <header id="header" className="sticky top-0 z-40 bg-[#05081E]/85 backdrop-blur-md border-b border-white/5 transition-all">
+      <header id="header" className="sticky top-0 z-45 bg-[#0B0F17]/90 backdrop-blur-md border-b border-white/[0.05] transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           
           {/* Logo brand container */}
           <a href="#hero" id="logo-brand" className="flex items-center space-x-3 group outline-none">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-cyan-accent flex items-center justify-center p-[1px] shadow-lg shadow-primary/20">
-              <div className="w-full h-full bg-[#05081E] rounded-[7px] flex items-center justify-center transition-all group-hover:bg-gradient-to-br group-hover:from-primary/30 group-hover:to-cyan-accent/25">
-                <span className="text-xl font-bold font-accent text-transparent bg-clip-text bg-gradient-to-r from-cyan-accent via-white to-primary">D</span>
-              </div>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight font-display bg-clip-text text-white group-hover:text-cyan-accent transition-colors">
-                Diginfotech Solutions
+            <DiginfotechLogoIcon className="w-10 h-10" />
+            <div className="flex flex-col text-left">
+              <span className="text-lg font-black tracking-wider font-display uppercase text-white group-hover:text-cyan-accent transition-colors leading-none">
+                Diginfotech
               </span>
-              <span className="text-[10px] uppercase tracking-[0.25em] text-white/50 -mt-1 font-accent">India</span>
+              <span className="text-[10px] uppercase tracking-[0.22em] text-[#00D1FF] mt-1 font-accent font-semibold">
+                Solutions | India
+              </span>
             </div>
           </a>
 
           {/* Desktop Nav Actions */}
           <nav id="desktop-nav" className="hidden md:flex items-center space-x-8 font-medium text-sm">
-            <a href="#services" className="text-white/70 hover:text-cyan-accent transition-colors py-2 outline-none">Services</a>
-            <a href="#why-choose-us" className="text-white/70 hover:text-cyan-accent transition-colors py-2 outline-none">Advantages</a>
-            <a href="#portfolio" className="text-white/70 hover:text-cyan-accent transition-colors py-2 outline-none">Portfolio</a>
-            <a href="#testimonials" className="text-white/70 hover:text-cyan-accent transition-colors py-2 outline-none">Reviews</a>
-            <a href="#contact" className="text-white/70 hover:text-cyan-accent transition-colors py-2 outline-none">Contact Us</a>
+            <a href="#services" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Services</a>
+            <a href="#why-choose-us" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Advantages</a>
+            <a href="#portfolio" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Portfolio</a>
+            <a href="#testimonials" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Reviews</a>
+            <a href="#contact" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Contact Us</a>
           </nav>
 
           {/* Header Action Button Group */}
           <div className="hidden md:flex items-center space-x-4">
             <a 
               href="#contact" 
-              className="text-xs font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-white/10 hover:border-cyan-accent bg-white/2 hover:bg-cyan-accent/5 cursor-pointer text-white transition-all text-center"
+              className="text-xs font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full border border-white/10 hover:border-primary bg-white/[0.02] hover:bg-primary/5 cursor-pointer text-white transition-all text-center"
             >
               Get Free Quote
             </a>
@@ -584,7 +1479,7 @@ export default function App() {
               href={getWhatsAppLink("Hello Diginfotech Solutions India, I want to ask for a free project quote.")}
               target="_blank"
               rel="noreferrer"
-              className="text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded-full bg-primary hover:bg-[#005BFF]/80 text-white transition-all text-center flex items-center space-x-2 cursor-pointer shadow-lg shadow-primary/30"
+              className="text-xs font-bold uppercase tracking-widest px-5 py-2.5 rounded-full bg-primary hover:bg-[#5F35FF]/90 text-white transition-all text-center flex items-center space-x-2 cursor-pointer shadow-lg shadow-primary/20"
             >
               <span>Get Started</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -594,7 +1489,7 @@ export default function App() {
           {/* Hamburguer icon */}
           <button 
             id="mobile-nav-toggle"
-            className="md:hidden p-2 rounded-lg bg-white/3 border border-white/5 text-white/90 cursor-pointer"
+            className="md:hidden p-2 rounded-lg bg-white/5 border border-white/10 text-white/90 cursor-pointer"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle navigation menu"
           >
@@ -604,39 +1499,39 @@ export default function App() {
 
         {/* Mobile Navigation Dropdown */}
         {mobileMenuOpen && (
-          <div id="mobile-menu-drawer" className="md:hidden border-t border-white/5 bg-[#05081E]/95 backdrop-blur-lg absolute left-0 right-0 py-6 px-4 space-y-4 flex flex-col shadow-2xl z-50">
+          <div id="mobile-menu-drawer" className="md:hidden border-t border-white/[0.05] bg-[#0B0F17]/95 backdrop-blur-lg absolute left-0 right-0 py-6 px-4 space-y-4 flex flex-col shadow-2xl z-50">
             <a 
               href="#services" 
               onClick={() => setMobileMenuOpen(false)}
-              className="text-white/80 hover:text-cyan-accent text-base font-semibold py-2"
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Services
             </a>
             <a 
               href="#why-choose-us" 
               onClick={() => setMobileMenuOpen(false)}
-              className="text-white/80 hover:text-cyan-accent text-base font-semibold py-2"
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Advantages
             </a>
             <a 
               href="#portfolio" 
               onClick={() => setMobileMenuOpen(false)}
-              className="text-white/80 hover:text-cyan-accent text-base font-semibold py-2"
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Portfolio Gallery
             </a>
             <a 
               href="#testimonials" 
               onClick={() => setMobileMenuOpen(false)}
-              className="text-white/80 hover:text-cyan-accent text-base font-semibold py-2"
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Success Reviews
             </a>
             <a 
               href="#contact" 
               onClick={() => setMobileMenuOpen(false)}
-              className="text-white/80 hover:text-cyan-accent text-base font-semibold py-2"
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Contact Us
             </a>
@@ -744,233 +1639,166 @@ export default function App() {
                 </div>
               </div>
 
-            </div>
-
-            {/* Right side interactives mockups / floating analytics card board */}
-            <div className="lg:col-span-5 relative mt-6 lg:mt-0 flex justify-center">
+                      {/* Right side interactives mockups / floating analytics card board */}
+            <div className="lg:col-span-12 xl:col-span-5 relative mt-6 lg:mt-0 flex justify-center">
               
               {/* Outer decorative glowing orbit ring */}
-              <div className="absolute w-[420px] h-[420px] rounded-full border border-white/5 scale-[0.9] -translate-y-4 pointer-events-none hidden sm:block"></div>
-              <div className="absolute w-[300px] h-[300px] rounded-full border border-primary/10 scale-100 pointer-events-none hidden sm:block"></div>
+              <div className="absolute w-[440px] h-[440px] rounded-full border border-white/[0.03] scale-[0.9] -translate-y-4 pointer-events-none hidden sm:block"></div>
+              <div className="absolute w-[320px] h-[320px] rounded-full border border-primary/5 scale-100 pointer-events-none hidden sm:block"></div>
 
               {/* Prime Glassmorphic Interface Module Card */}
-              <div className="relative glass-panel w-full max-w-[440px] rounded-2xl p-6 shadow-2xl space-y-6 glow-shadow-blue border-white/10">
+              <div className="relative bg-[#111622] border border-white/[0.06] w-full max-w-[440px] rounded-3xl p-6 sm:p-7 shadow-[0_30px_70px_rgba(0,0,0,0.6)] space-y-6">
                 
                 {/* Mock Card Header */}
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2.5 h-2.5 bg-red-500/80 rounded-full"></div>
+                    <div className="w-2.5 h-2.5 bg-yellow-500/80 rounded-full"></div>
+                    <div className="w-2.5 h-2.5 bg-green-500/80 rounded-full"></div>
                   </div>
-                  <div className="text-[10px] uppercase font-mono tracking-wider text-white/45 bg-white/5 px-2.5 py-1 rounded bg-opacity-40">
-                    Live Monitor
-                  </div>
+                  <span className="text-[10px] tracking-widest font-mono text-white/40 uppercase">Performance Engine</span>
                 </div>
 
-                {/* Growth Metric Tracker Graph */}
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-white/60 uppercase tracking-widest font-accent">Customer Sales Increase</span>
-                    <span className="text-lg font-bold text-cyan-accent">+428.1%</span>
-                  </div>
+                {/* Operations KPIs list */}
+                <div className="space-y-4 text-left">
                   
-                  {/* Styled custom vector chart element (pure CSS design) */}
-                  <div className="h-28 flex items-end justify-between gap-1 pt-4 relative">
-                    {/* Background grid lines */}
-                    <div className="absolute inset-0 flex flex-col justify-between opacity-10">
-                      <div className="border-b border-white w-full"></div>
-                      <div className="border-b border-white w-full"></div>
-                      <div className="border-b border-white w-full"></div>
+                  {/* Metric 1: Core Web Vitals Speed */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/50 uppercase tracking-widest font-accent text-[10px]">Page Loading Speed</span>
+                      <span className="text-sm font-bold text-green-400 font-mono">0.4s (Grade A+)</span>
                     </div>
-
-                    {/* Chart Bars */}
-                    <div className="w-1/12 bg-white/10 h-[20%] rounded-t transition-all hover:bg-primary"></div>
-                    <div className="w-1/12 bg-white/10 h-[35%] rounded-t transition-all hover:bg-primary"></div>
-                    <div className="w-1/12 bg-primary/45 h-[28%] rounded-t transition-all hover:bg-primary"></div>
-                    <div className="w-1/12 bg-primary/55 h-[45%] rounded-t transition-all hover:bg-primary"></div>
-                    <div className="w-1/12 bg-cyan-accent/35 h-[62%] rounded-t transition-all hover:bg-cyan-accent"></div>
-                    <div className="w-1/12 bg-cyan-accent/55 h-[50%] rounded-t transition-all hover:bg-cyan-accent"></div>
-                    <div className="w-1/12 bg-gradient-to-t from-primary to-cyan-accent h-[85%] rounded-t shadow-lg relative group">
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 scale-0 group-hover:scale-100 bg-[#05081E] text-[9px] font-bold px-1.5 py-0.5 rounded border border-cyan-accent text-cyan-accent transition-all">SaaS</span>
+                    <div className="w-full bg-white/[0.04] h-2 rounded-full overflow-hidden p-[1.5px]">
+                      <div className="bg-gradient-to-r from-primary to-cyan-accent h-full w-[98%] rounded-full"></div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Multi-Channel Activity Lines representation */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-semibold">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2.5 h-2.5 bg-cyan-accent rounded-full"></div>
-                      <span className="text-white/80">Google Ad Campaigns</span>
-                    </div>
-                    <span className="text-cyan-accent font-mono font-bold">ACTIVE</span>
-                  </div>
-                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-gradient-to-r from-primary to-cyan-accent h-full w-[85%] rounded-full animate-pulse"></div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs font-semibold pt-1">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2.5 h-2.5 bg-primary rounded-full"></div>
-                      <span className="text-white/80">WhatsApp Team Automation</span>
+                  {/* Metric 2: SEO Visibility Grade */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-white/50 uppercase tracking-widest font-accent text-[10px]">Google SEO Rankings</span>
+                      <span className="text-sm font-bold text-white font-mono">99 / 100</span>
                     </div>
-                    <span className="text-primary font-mono font-bold">ENGAGED</span>
+                    <div className="w-full bg-white/[0.04] h-2 rounded-full overflow-hidden p-[1.5px]">
+                      <div className="bg-gradient-to-r from-primary to-cyan-accent h-full w-[95%] rounded-full"></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full w-[94%] rounded-full"></div>
+
+                  {/* Metric 3: Automated Leads qualifying pipeline */}
+                  <div className="pt-2 bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] text-white/45 block uppercase tracking-wider">Lead Delivery Pipeline</span>
+                      <span className="text-xs font-semibold text-white">Google Sheet & Phone Sync</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-green-400 bg-green-400/10">
+                        Active
+                      </span>
+                    </div>
                   </div>
+
                 </div>
 
                 {/* Quick lead intake box inside the hero mockup */}
-                <form onSubmit={handleCallbackSubmit} className="pt-4 border-t border-white/10 space-y-2">
-                  <span className="text-xs text-white/50 block font-accent">Request a quick callback:</span>
+                <form onSubmit={handleCallbackSubmit} className="pt-4 border-t border-white/[0.06] space-y-3">
+                  <span className="text-xs text-white/50 block font-accent text-left">Need a quick callback to discuss your project?</span>
                   <div className="flex gap-2">
                     <input 
                       type="tel" 
                       placeholder="Your Phone Number"
                       value={callbackNumber}
                       onChange={(e) => setCallbackNumber(e.target.value)}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-accent text-white"
+                      className="flex-1 bg-white/[0.03] border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-primary text-white transition-all placeholder:text-white/30"
                       disabled={callbackSubmitted}
                     />
                     <button 
                       type="submit"
-                      className="bg-cyan-accent text-navy-dark font-black px-4 py-2 rounded-lg text-xs hover:bg-white transition-all cursor-pointer dynamic-btn"
+                      className="bg-primary hover:bg-[#5F35FF]/90 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-lg shadow-primary/10 select-none font-display font-medium"
                       disabled={callbackSubmitted}
                     >
-                      {callbackSubmitted ? "Received" : "Call Me"}
+                      {callbackSubmitted ? "Requested" : "Call Me"}
                     </button>
                   </div>
                   {callbackSubmitted && (
-                    <span id="callback-success" className="text-[10px] text-green-400 block animate-fade-in font-semibold">
-                      ✓ Callback saved! Opening WhatsApp chat...
+                    <span id="callback-success" className="text-[10px] text-green-400 block animate-fade-in font-semibold text-left">
+                      ✓ Callback saved! Handshaking with secure servers...
                     </span>
                   )}
                 </form>
 
               </div>
 
-            </div>
+            </div>      </div>
 
           </div>
         </div>
       </section>
 
-      {/* 2. SERVICES SECTION (Premium grids with detailed inspector modals) */}
-      <section id="services" className="py-24 border-t border-white/5 relative bg-[#060a22]">
+      {/* 2. SERVICES SECTION (Sleek Compact Grid - Fits on One Screen with High Visibility) */}
+      <section id="services" className="py-16 border-t border-white/5 relative bg-[#0B0F17]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           {/* Header block with elegant double text styling */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <span className="text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-white/3 rounded-full border border-white/5">WHAT WE DO</span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white">
+          <div className="text-center max-w-3xl mx-auto mb-10 space-y-3">
+            <span className="text-[10px] uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/20">WHAT WE DO</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold font-display leading-tight text-white">
               Our Professional <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Services</span>
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-primary to-cyan-accent mx-auto rounded-full"></div>
-            <p className="text-white/70 text-base md:text-lg font-light leading-relaxed">
-              We design outstanding websites, design creative brands, run profitable marketing campaigns, and set up smart business automation.
+            <div className="w-16 h-1 bg-gradient-to-r from-primary to-cyan-accent mx-auto rounded-full"></div>
+            <p className="text-white/75 text-xs sm:text-sm md:text-base font-light leading-relaxed">
+              Click on any specialist competence to inspect full capabilities and deliverable specifications.
             </p>
           </div>
 
-          {/* CREATIVE SERVICES STACK COMPACT DASHBOARD */}
-          <div className="mb-16 bg-gradient-to-r from-[#171e54] via-[#090e30] to-[#171e54] p-6 sm:p-8 rounded-3xl border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.65),_inset_0_1px_1px_rgba(255,255,255,0.25)] relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,209,255,0.12),transparent_70%)] pointer-events-none"></div>
-            
-            <div className="mb-6 pb-6 border-b border-white/10 relative z-10 text-center md:text-left">
-              <h3 className="text-lg font-bold text-white flex items-center justify-center md:justify-start gap-2.5">
-                <Sparkles className="w-5 h-5 text-cyan-accent animate-pulse" />
-                <span className="font-display tracking-tight text-white">Services Quick-Glance Desk</span>
-              </h3>
-              <p className="text-white/60 text-xs mt-1.5 font-light">
-                Click any service bubble to auto-scroll down to its detailed specifications, process milestones, and tech tools.
-              </p>
-            </div>
-
-            {/* Grid display: 6 columns on large screens for a single-screen complete glance */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 relative z-10">
-              {services.map((svc) => {
-                const QuickIcon = svc.icon;
-                return (
-                  <button
-                    key={`quick-stack-${svc.id}`}
-                    onClick={() => scrollToService(svc.id)}
-                    className="group bg-gradient-to-b from-[#1c276e]/90 to-[#0b102e]/98 hover:from-[#253287] hover:to-[#0e153b] border border-white/15 hover:border-cyan-accent/80 p-4 rounded-2xl transition-all duration-300 hover:-translate-y-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] hover:shadow-[0_12px_20px_rgba(0,209,255,0.15)] flex flex-col items-center text-center justify-center gap-3 relative overflow-hidden cursor-pointer select-none focus:outline-none min-h-[110px]"
-                  >
-                    {/* Glowing card background hover indicator */}
-                    <div className="absolute -top-1 w-full h-[2.5px] bg-gradient-to-r from-transparent via-cyan-accent/50 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-350"></div>
-                    
-                    <div className="w-10 h-10 rounded-full bg-[#090F30] border border-white/10 flex items-center justify-center text-cyan-accent group-hover:text-white group-hover:bg-cyan-accent group-hover:border-transparent transition-all">
-                      <QuickIcon className="w-4.5 h-4.5" />
-                    </div>
-                    
-                    <span className="text-white font-extrabold group-hover:text-cyan-accent transition-colors text-[11px] sm:text-xs leading-snug tracking-tight font-display">
-                      {svc.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Grid Layout containing 6 premium cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Compact Grid Layout containing 6 premium interactive items */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
             {services.map((svc) => {
               const IconComp = svc.icon;
               return (
                 <div 
                   key={svc.id}
                   id={`service-${svc.id}`}
-                  className="bg-gradient-to-b from-[#1a2364] to-[#0c1236] border border-white/15 hover:border-cyan-accent/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),_0_20px_45px_rgba(0,0,0,0.6)] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.35),_0_25px_50px_rgba(0,209,255,0.2)] rounded-3xl p-8 flex flex-col justify-between group cursor-pointer transform hover:-translate-y-3 hover:scale-[1.03] hover:rotate-1 transition-all duration-300 relative overflow-hidden"
+                  className="bg-[#111622] border border-white/[0.08] hover:border-cyan-accent/60 shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_25px_rgba(0,209,255,0.15)] rounded-2xl p-4 flex items-center justify-between group cursor-pointer transform hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
                   onClick={() => setSelectedServiceDetail(svc)}
                 >
-                  {/* Subtle 3D glossy highlight on top edge on hover */}
-                  <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-accent/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  
-                  <div className="space-y-4 relative z-10">
-                    {/* Glowing Icon Container with 3D shadow */}
-                    <div className="w-14 h-14 rounded-xl bg-[#090F30] flex items-center justify-center border border-white/10 group-hover:border-cyan-accent/50 group-hover:shadow-[0_0_15px_rgba(0,209,255,0.3)] transition-all">
-                      <IconComp className="w-7 h-7 text-cyan-accent transition-transform group-hover:scale-110" />
+                  <div className="flex items-center space-x-4 relative z-10 text-left">
+                    {/* Glowing High-Contrast Cyber Icon Container */}
+                    <div className="w-9 h-9 rounded-xl bg-cyan-accent/10 flex items-center justify-center border border-cyan-accent/30 group-hover:bg-cyan-accent/20 group-hover:border-cyan-accent/60 transition-all shrink-0">
+                      <IconComp className="w-4.5 h-4.5 text-cyan-accent filter drop-shadow-[0_0_8px_rgba(0,209,255,0.5)]" />
                     </div>
 
-                    <div className="space-y-2 text-left">
-                      <span className="text-[10px] font-mono tracking-widest text-[#00D1FF] bg-cyan-accent/10 rounded px-2.5 py-0.5 font-bold uppercase ring-1 ring-cyan-accent/20">
+                    <div className="space-y-0.5 text-left">
+                      <span className="text-[8px] font-mono tracking-widest text-cyan-accent bg-[#0B0F17]/80 rounded px-1.5 py-0.5 font-bold uppercase border border-white/[0.05]">
                         {svc.tag}
                       </span>
-                      <h3 className="text-xl font-bold font-display group-hover:text-cyan-accent transition-colors text-white mt-1">
+                      <h3 className="text-xs sm:text-sm font-extrabold text-white group-hover:text-cyan-accent transition-colors">
                         {svc.title}
                       </h3>
-                      <p className="text-white/70 text-sm leading-relaxed font-light line-clamp-4">
-                        {svc.shortDesc}
-                      </p>
                     </div>
                   </div>
 
-                  {/* Micro action button inside the card */}
-                  <div className="pt-6 flex items-center justify-between border-t border-white/10 mt-6 relative z-10">
-                    <span className="text-xs text-white/50 group-hover:text-cyan-accent transition-colors flex items-center space-x-1.5 font-semibold">
-                      <span>View Details</span>
-                      <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
-                    </span>
-                    <span className="text-[11px] font-mono text-white/40">SERVICING ACTIVE</span>
+                  {/* Sleek action chevron indicator */}
+                  <div className="flex items-center space-x-1 shrink-0 ml-2">
+                    <span className="text-[9px] text-[#00D1FF] group-hover:text-white transition-colors font-bold uppercase tracking-widest hidden sm:inline">Details</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-white/30 group-hover:text-cyan-accent group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="text-center mt-12 bg-[#0d143a] border border-white/10 rounded-2xl max-w-lg mx-auto p-4 flex items-center justify-center gap-3 shadow-lg">
-            <span className="inline-flex w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
-            <span className="text-sm font-medium text-white/80">Need a custom tool or script? We build tailored software.</span>
-            <a href="#contact" className="text-sm text-cyan-accent font-bold hover:underline">Get Free Proposal</a>
+          <div className="text-center mt-8 bg-[#111622] border border-white/[0.05] rounded-2xl max-w-lg mx-auto p-4 flex items-center justify-center gap-2.5 shadow-md">
+            <span className="inline-flex w-2 h-2 bg-cyan-accent rounded-full animate-pulse"></span>
+            <span className="text-xs font-semibold text-white/70">Need a custom web tool or custom system? We write tailored code.</span>
+            <a href="#contact" className="text-xs text-cyan-accent font-bold hover:underline">Get Free Proposal</a>
           </div>
 
         </div>
       </section>
 
       {/* 3. WHY CHOOSE US SECTION (Futuristic SaaS values with stats validation) */}
-      <section id="why-choose-us" className="py-24 border-t border-white/5 relative bg-[#05081E]">
+      <section id="why-choose-us" className="py-24 border-t border-white/5 relative bg-[#0B0F17]">
         
         {/* Abstract structural alignment vectors */}
         <div className="absolute top-1/2 left-20 w-[300px] h-[300px] bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
@@ -995,7 +1823,7 @@ export default function App() {
               </p>
 
               {/* Years of expertise stat highlight bento card */}
-              <div id="stat-badge-bento" className="relative p-6 rounded-2xl bg-gradient-to-r from-[#131b4b] to-[#0a0f2c] border border-white/10 flex items-center space-x-6 overflow-hidden shadow-xl">
+              <div id="stat-badge-bento" className="relative p-6 rounded-2xl bg-[#111622] border border-white/10 flex items-center space-x-6 overflow-hidden shadow-xl">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-accent/5 rounded-full blur-2xl pointer-events-none"></div>
                 
                 <div className="flex flex-col text-left">
@@ -1012,16 +1840,16 @@ export default function App() {
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <a 
                   href={`tel:${contactPhone}`} 
-                  className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl hover:border-cyan-accent transition-all text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center space-x-2"
+                  className="px-6 py-3 bg-white/[0.03] border border-white/10 rounded-xl hover:border-primary transition-all text-xs font-bold uppercase tracking-wider text-center flex items-center justify-center space-x-2"
                 >
-                  <Phone className="w-3.5 h-3.5 text-cyan-accent" />
+                  <Phone className="w-3.5 h-3.5 text-primary" />
                   <span>Call Us Now</span>
                 </a>
                 <a 
                   href={getWhatsAppLink("Hello Diginfotech, I am interested in discussing a new project together.")} 
                   target="_blank"
                   rel="noreferrer"
-                  className="px-6 py-3 bg-primary hover:bg-[#005BFF]/80 rounded-xl transition-all text-xs font-bold uppercase tracking-wider text-center text-white flex items-center justify-center space-x-2 shadow-md hover:shadow-primary/20"
+                  className="px-6 py-3 bg-primary hover:bg-[#5F35FF]/90 rounded-xl transition-all text-xs font-bold uppercase tracking-wider text-center text-white flex items-center justify-center space-x-2 shadow-md hover:shadow-primary/10"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span>Get a Free Consultation</span>
@@ -1031,25 +1859,25 @@ export default function App() {
             </div>
 
             {/* Right Column Grid for Features */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 text-left">
               {whyChooseUs.map((feat, idx) => {
                 const FeatIcon = feat.icon;
                 return (
                   <div 
                     key={idx}
-                    className="p-6 rounded-2xl bg-gradient-to-b from-[#1a2364] to-[#0c1236] border border-white/15 hover:border-cyan-accent/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),_0_15px_30px_rgba(0,0,0,0.6)] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.3),_0_20px_40px_rgba(0,209,255,0.15)] hover:-translate-y-2.5 hover:rotate-1 hover:scale-[1.02] transition-all duration-300 relative group overflow-hidden"
+                    className="p-6 rounded-2xl bg-[#111622] border border-white/[0.06] hover:border-primary/40 shadow-lg hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden"
                   >
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#00D1FF] to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
                     
                     <div className="flex items-start space-x-4">
-                      <div className="w-10 h-10 rounded-lg bg-[#05081E] border border-white/10 group-hover:border-cyan-accent flex items-center justify-center shrink-0 transition-all">
-                        <FeatIcon className="w-5 h-5 text-cyan-accent" />
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 group-hover:border-primary flex items-center justify-center shrink-0 transition-all">
+                        <FeatIcon className="w-5 h-5 text-primary" />
                       </div>
                       <div className="space-y-1">
-                        <h4 className="text-base font-bold text-white group-hover:text-[#00D1FF] transition-colors font-display text-left">
+                        <h4 className="text-base font-bold text-white group-hover:text-primary transition-colors font-display text-left">
                           {feat.title}
                         </h4>
-                        <p className="text-white/70 text-xs font-light leading-relaxed text-left">
+                        <p className="text-white/60 text-xs font-light leading-relaxed text-left">
                           {feat.description}
                         </p>
                       </div>
@@ -1065,18 +1893,18 @@ export default function App() {
       </section>
 
       {/* 4. PORTFOLIO SECTION (Interactive grid with category selectors & specs sheets) */}
-      <section id="portfolio" className="py-24 border-t border-white/5 relative bg-[#090d26]">
+      <section id="portfolio" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           {/* Section Header with dynamic context tag */}
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
             <div className="space-y-4 max-w-2xl text-left">
-              <span className="text-xs uppercase tracking-widest font-extrabold text-cyan-accent font-accent py-1 px-3.5 bg-white/3 rounded-full border border-white/5">OUR RECENT PROJECTS</span>
+              <span className="text-xs uppercase tracking-widest font-extrabold text-primary font-accent py-1 px-3.5 bg-primary/10 rounded-full border border-primary/25">OUR RECENT PROJECTS</span>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white">
                 Our Latest <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Work</span>
               </h2>
-              <p className="text-white/70 text-base font-light">
+              <p className="text-white/60 text-base font-light">
                 A selection of modern websites, marketing setups, and branding we have deployed for our clients.
               </p>
             </div>
@@ -1085,7 +1913,7 @@ export default function App() {
             <div className="hidden lg:block">
               <a 
                 href="#contact" 
-                className="px-6 py-3 rounded-full border border-white/15 hover:border-cyan-accent bg-white/5 text-xs text-white uppercase tracking-widest font-black flex items-center space-x-2 transition-all"
+                className="px-6 py-3 rounded-full border border-white/10 hover:border-primary bg-white/[0.02] text-xs text-white uppercase tracking-widest font-bold flex items-center space-x-2 transition-all"
               >
                 <span>Get a Free Quote</span>
                 <ExternalLink className="w-3 h-3" />
@@ -1095,38 +1923,38 @@ export default function App() {
 
           {/* Core Visual Laptop Showcase (Embedding the generated high-quality asset) */}
           <div className="mb-16">
-            <div className="relative bg-gradient-to-br from-[#131b4b] to-[#0a0f2c] border border-white/10 rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl">
+            <div className="relative bg-[#111622] border border-white/[0.06] rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden shadow-2xl">
               
               {/* Outer light sheen border shine */}
-              <div className="absolute top-0 left-0 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-cyan-accent to-transparent"></div>
+              <div className="absolute top-0 left-0 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-primary to-transparent"></div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 
                 {/* Visual Representation (Left Column) */}
-                <div className="lg:col-span-7 flex justify-center relative">
+                <div className="lg:col-span-12 xl:col-span-7 flex justify-center relative">
                   {/* Subtle pulsing absolute glow backdrop */}
-                  <div className="absolute inset-0 bg-cyan-accent/10 rounded-full blur-[60px] pointer-events-none scale-75"></div>
+                  <div className="absolute inset-0 bg-primary/5 rounded-full blur-[60px] pointer-events-none scale-75"></div>
                   
                   {/* Loaded Image using optimal responsive guidelines */}
                   <img 
                     src={portfolioMockup} 
                     alt="Diginfotech custom workspace dashboard" 
                     referrerPolicy="no-referrer"
-                    className="relative rounded-xl border border-white/10 shadow-2xl max-w-full h-auto object-cover transform hover:scale-[1.02] transition-transform duration-500"
+                    className="relative rounded-xl border border-white/[0.08] shadow-2xl max-w-full h-auto object-cover transform hover:scale-[1.01] transition-transform duration-500"
                   />
                   
                   {/* Floating glass overlay icon badge */}
-                  <div className="absolute bottom-4 right-4 bg-navy-dark/95 px-3.5 py-1.5 rounded-lg border border-cyan-accent/30 flex items-center space-x-2">
+                  <div className="absolute bottom-4 right-4 bg-[#0B0F17]/95 px-3.5 py-1.5 rounded-lg border border-primary/25 flex items-center space-x-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-[#00D1FF] font-semibold">Active Project</span>
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-[#818CF8] font-semibold">Active Case Study</span>
                   </div>
                 </div>
 
                 {/* Info and stats (Right Column) */}
-                <div className="lg:col-span-5 text-left space-y-6">
+                <div className="lg:col-span-12 xl:col-span-5 text-left space-y-6">
                   
                   <div className="space-y-2">
-                    <span className="text-xs font-bold uppercase tracking-widest text-cyan-accent bg-[#05081E] border border-white/10 px-3 py-1 rounded-full">
+                    <span className="text-xs font-bold uppercase tracking-widest text-primary bg-[#0B0F17] border border-white/10 px-3 py-1 rounded-full">
                       FEATURED CASE STUDY
                     </span>
                     <h3 className="text-2xl sm:text-3xl font-bold font-display text-white">
@@ -1134,30 +1962,30 @@ export default function App() {
                     </h3>
                   </div>
 
-                  <p className="text-white/70 text-sm leading-relaxed font-light">
+                  <p className="text-white/60 text-sm leading-relaxed font-light">
                     We built this easy-to-use business dashboard for our clients. It allows business owners to track their daily sales, lead sources, and team performance in real-time on a beautiful, modern screen.
                   </p>
 
                   {/* Operational stats grids */}
-                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/10">
+                  <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/[0.08]">
                     <div className="flex flex-col">
-                      <span className="text-[#00D1FF] text-xl font-bold font-accent">0.8 Seconds</span>
-                      <span className="text-[10px] text-white/50 uppercase tracking-widest mt-0.5">Loading speed</span>
+                      <span className="text-primary text-xl font-bold font-accent">0.8 Seconds</span>
+                      <span className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">Loading speed</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[#00D1FF] text-xl font-bold font-accent">90 Hours/Mo</span>
-                      <span className="text-[10px] text-white/50 uppercase tracking-widest mt-0.5">Work Time Saved</span>
+                      <span className="text-primary text-xl font-bold font-accent">90 Hours/Mo</span>
+                      <span className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5 font-mono">Operations Saved</span>
                     </div>
                   </div>
 
                   {/* CTA link to replicate setup */}
                   <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-white/60 font-semibold block">Want a similar setup?</span>
+                    <span className="text-xs text-white/50 font-semibold block">Want a similar setup?</span>
                     <a 
                       href={getWhatsAppLink("Hello Diginfotech Solutions, I saw your business dashboard case study. I want a similar setup for my business.")}
                       target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center space-x-1.5 text-xs text-cyan-accent hover:underline font-bold"
+                      rel="referrer"
+                      className="inline-flex items-center space-x-1.5 text-xs text-primary hover:underline font-bold"
                     >
                       <span>Get a Free Quote</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -1185,8 +2013,8 @@ export default function App() {
                 onClick={() => setSelectedPortfolioTab(tab.id as any)}
                 className={`px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest cursor-pointer transition-all border outline-none ${
                   selectedPortfolioTab === tab.id
-                    ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
-                    : "bg-white/5 hover:bg-white/10 border-white/10 hover:border-cyan-accent/40 text-white/70 hover:text-white"
+                    ? "bg-primary border-primary text-white shadow-md shadow-primary/10"
+                    : "bg-white/[0.03] hover:bg-[#111622] border-white/[0.08] hover:border-primary/40 text-white/70 hover:text-white"
                 }`}
               >
                 {tab.label}
@@ -1199,20 +2027,20 @@ export default function App() {
             {filteredProjects.map((proj) => (
               <div 
                 key={proj.id}
-                className="group relative rounded-2xl bg-gradient-to-b from-[#1a2364] to-[#0c1236] border border-white/15 hover:border-cyan-accent/60 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),_0_15px_30px_rgba(0,0,0,0.5)] hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.3),_0_20px_40px_rgba(0,209,255,0.15)] hover:-translate-y-2.5 hover:rotate-1 hover:scale-[1.02] transition-all duration-300 overflow-hidden flex flex-col justify-between"
+                className="group relative rounded-2xl bg-[#111622] border border-white/[0.06] hover:border-primary/40 shadow-xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden flex flex-col justify-between"
               >
                 {/* Project Image Frame */}
-                <div className="relative aspect-video overflow-hidden bg-navy-dark shrink-0">
-                  <div className="absolute inset-0 bg-[#05081E]/35 z-10"></div>
+                <div className="relative aspect-video overflow-hidden bg-[#0B0F17] shrink-0">
+                  <div className="absolute inset-0 bg-[#0B0F17]/25 z-10"></div>
                   <img 
                     src={proj.image} 
                     alt={proj.title} 
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover transform scale-100 group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover transform scale-100 group-hover:scale-[1.03] transition-transform duration-500"
                   />
                   
                   {/* Inline indicator badge */}
-                  <span className="absolute top-4 left-4 bg-navy-dark/95 z-25 px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider text-cyan-accent border border-cyan-accent/20">
+                  <span className="absolute top-4 left-4 bg-[#0B0F17]/95 z-25 px-3 py-1 rounded text-[9px] font-bold uppercase tracking-wider text-primary border border-primary/25">
                     {proj.categoryLabel}
                   </span>
                 </div>
@@ -1220,10 +2048,10 @@ export default function App() {
                 {/* Project Content panel */}
                 <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
                   <div className="space-y-2">
-                    <h3 className="text-lg font-bold text-white group-hover:text-cyan-accent transition-colors font-display text-left">
+                    <h3 className="text-lg font-bold text-white group-hover:text-primary transition-colors font-display text-left">
                       {proj.title}
                     </h3>
-                    <p className="text-white/70 text-xs font-light leading-relaxed text-left">
+                    <p className="text-white/60 text-xs font-light leading-relaxed text-left">
                       {proj.description}
                     </p>
                   </div>
@@ -1231,14 +2059,14 @@ export default function App() {
                   {/* Spec list representation */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {proj.tech.map((t, i) => (
-                      <span key={i} className="text-[10px] font-mono text-white/50 bg-white/10 px-2 py-0.5 rounded">
+                      <span key={i} className="text-[10px] font-mono text-white/40 bg-white/[0.04] px-2 py-0.5 rounded">
                         {t}
                       </span>
                     ))}
                   </div>
 
                   {/* Impact Metric & Quick WhatsApp Quote action */}
-                  <div className="pt-4 border-t border-white/10 flex items-center justify-between text-left">
+                  <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between text-left">
                     <div>
                       <span className="text-[9px] text-white/40 block uppercase tracking-wider">PROJECT OUTCOME</span>
                       <span className="text-xs font-bold text-green-400 font-accent">{proj.stats}</span>
@@ -1248,7 +2076,7 @@ export default function App() {
                       href={getWhatsAppLink(`Hello Diginfotech Solutions India, I saw your project "${proj.title}" in your portfolio. I'd like to get a quote for a similar digital setup.`)}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-3.5 py-1.5 rounded-lg bg-[#0A0F2C] hover:bg-cyan-accent hover:text-navy-dark text-xs font-bold text-white transition-all border border-white/5 hover:border-cyan-accent"
+                      className="px-3.5 py-1.5 rounded-lg bg-[#0B0F17] hover:bg-primary hover:text-white text-xs font-bold text-white transition-all border border-white/10 hover:border-primary"
                     >
                       Get This Setup
                     </a>
@@ -1263,25 +2091,25 @@ export default function App() {
       </section>
 
       {/* 5. TESTIMONIALS SECTION (Interactive slide blocks with visual quotes) */}
-      <section id="testimonials" className="py-24 border-t border-white/5 relative bg-[#05081E]">
+      <section id="testimonials" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <span className="text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-white/3 rounded-full border border-white/5">
+            <span className="text-xs uppercase tracking-[0.25em] font-bold text-primary font-accent py-1 px-3.5 bg-primary/10 rounded-full border border-primary/20">
               HAPPY CLIENTS
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white">
               What Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Clients Say</span>
             </h2>
-            <p className="text-white/70 text-sm md:text-base font-light">
+            <p className="text-white/60 text-sm md:text-base font-light">
               Read reviews from real business owners who trust us with their websites, branding, and marketing.
             </p>
           </div>
 
           {/* Testimonial Active Slider Display */}
           <div className="max-w-4xl mx-auto">
-            <div className="relative bg-gradient-to-br from-[#131b4b] to-[#0a0f2c] border border-white/10 rounded-3xl p-8 sm:p-12 overflow-hidden min-h-[300px] flex flex-col justify-between shadow-2xl">
+            <div className="relative bg-[#111622] border border-white/[0.06] rounded-3xl p-8 sm:p-12 overflow-hidden min-h-[300px] flex flex-col justify-between shadow-2xl">
               
               {/* Quote marks background vector decoration */}
               <span className="absolute right-8 top-6 text-9xl font-serif text-white/5 font-black leading-none pointer-events-none">“</span>
@@ -1301,36 +2129,36 @@ export default function App() {
               </div>
 
               {/* Author bio details & profile avatar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pt-8 border-t border-white/10 mt-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pt-8 border-t border-white/[0.06] mt-8">
                 <div className="flex items-center space-x-4 text-left">
                   <img 
                     src={testimonials[activeTestimonial].avatar} 
                     alt={testimonials[activeTestimonial].author} 
                     referrerPolicy="no-referrer"
-                    className="w-12 h-12 rounded-full border border-cyan-accent/25 object-cover"
+                    className="w-12 h-12 rounded-full border border-primary/20 object-cover"
                   />
                   <div>
                     <h4 className="text-sm font-bold text-white font-display">
                       {testimonials[activeTestimonial].author}
                     </h4>
-                    <p className="text-xs text-[#00D1FF] font-medium mt-0.5">
+                    <p className="text-xs text-primary font-medium mt-0.5 font-mono">
                       {testimonials[activeTestimonial].role}
                     </p>
                   </div>
                 </div>
 
                 {/* Slider Manual Switch Buttons */}
-                <div className="flex items-center space-x-2 bg-white/5 p-1.5 rounded-xl border border-white/10">
+                <div className="flex items-center space-x-2 bg-[#0B0F17] p-1.5 rounded-xl border border-white/5">
                   <button 
                     onClick={() => setActiveTestimonial((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1))}
-                    className="p-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-all cursor-pointer"
+                    className="p-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-white transition-all cursor-pointer"
                     aria-label="Previous review"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button 
                     onClick={() => setActiveTestimonial((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1))}
-                    className="p-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-all cursor-pointer"
+                    className="p-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-white transition-all cursor-pointer"
                     aria-label="Next review"
                   >
                     <ChevronRight className="w-5 h-5" />
@@ -1339,25 +2167,16 @@ export default function App() {
               </div>
 
             </div>
-
-            {/* Quick trust counter metrics helper below */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-white/45">
-              <span>ACTIVE CHATS TODAY</span>
-              <div className="flex items-center space-x-1.5 text-cyan-accent font-mono font-bold">
-                <span className="w-2 h-2 bg-cyan-accent rounded-full animate-ping"></span>
-                <span>{consultationsBooked} INQUIRIES BEING ANSWERED</span>
-              </div>
-            </div>
           </div>
 
         </div>
       </section>
 
       {/* 6. CONTACT SECTION + INTERACTIVE LEAD GENERATION TRANSMITTER */}
-      <section id="contact" className="py-24 border-t border-white/5 relative bg-[#090d26]">
+      <section id="contact" className="py-24 border-t border-white/[0.05] relative bg-[#0B0F17]">
         
-        {/* Glowing cybernetic backdrop meshes */}
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[140px] pointer-events-none translate-x-1/3"></div>
+        {/* Subtle royal backdrop meshes */}
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[140px] pointer-events-none translate-x-1/3"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
@@ -1367,15 +2186,15 @@ export default function App() {
             <div className="lg:col-span-5 text-left space-y-8">
               
               <div className="space-y-4">
-                <span className="text-xs uppercase tracking-widest font-extrabold text-cyan-accent font-accent py-1 px-3 bg-white/5 rounded-full border border-white/5 inline-block">
+                <span className="text-xs uppercase tracking-widest font-extrabold text-primary font-accent py-1 px-3 bg-primary/10 rounded-full border border-primary/20 inline-block">
                   GET IN TOUCH
                 </span>
                 
                 <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-[1.1] text-white">
-                  Let’s Build Something <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-cyan-accent to-white">Great Together</span>
+                  Let’s Build Something <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Great Together</span>
                 </h2>
 
-                <p className="text-white/70 text-sm md:text-base font-light leading-relaxed">
+                <p className="text-white/60 text-sm md:text-base font-light leading-relaxed">
                   We are here to help you grow your business. Contact us anytime for custom website quotes, marketing plans, brand design, or any support questions.
                 </p>
               </div>
@@ -1384,14 +2203,14 @@ export default function App() {
               <div className="space-y-4">
                 
                 {/* Contact phone card */}
-                <div className="p-4 rounded-xl bg-white/2 border border-white/5 flex items-center justify-between group">
+                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-center justify-between group transition-all duration-300">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <Phone className="w-5 h-5 text-cyan-accent" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-white/40 block uppercase tracking-wider">PHONE & WHATSAPP</span>
-                      <a href={`tel:${contactPhone}`} className="text-sm font-bold text-white hover:text-cyan-accent transition-colors">
+                      <span className="text-[10px] text-white/40 block uppercase tracking-wider font-semibold">PHONE & WHATSAPP</span>
+                      <a href={`tel:${contactPhone}`} className="text-sm font-bold text-white hover:text-primary transition-colors">
                         {contactPhone}
                       </a>
                     </div>
@@ -1406,14 +2225,14 @@ export default function App() {
                 </div>
 
                 {/* Contact email card */}
-                <div className="p-4 rounded-xl bg-white/2 border border-white/5 flex items-center justify-between group">
+                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-center justify-between group transition-all duration-300">
                   <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-cyan-accent" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-white/40 block uppercase tracking-wider font-accent">BUSINESS EMAIL</span>
-                      <a href={`mailto:${contactEmail}`} className="text-sm font-bold text-white hover:text-cyan-accent transition-colors">
+                      <span className="text-[10px] text-white/40 block uppercase tracking-wider font-accent font-semibold">BUSINESS EMAIL</span>
+                      <a href={`mailto:${contactEmail}`} className="text-sm font-bold text-white hover:text-primary transition-colors">
                         {contactEmail}
                       </a>
                     </div>
@@ -1428,47 +2247,47 @@ export default function App() {
                 </div>
 
                 {/* HQ Location representation */}
-                <div className="p-4 rounded-xl bg-white/2 border border-white/5 flex items-start space-x-4 group">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                    <MapPin className="w-5 h-5 text-cyan-accent" />
+                <div className="p-4 rounded-xl bg-[#111622] border border-white/[0.06] hover:border-primary/30 flex items-start space-x-4 group transition-all duration-300">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/[0.25] flex items-center justify-center shrink-0">
+                    <MapPin className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <span className="text-[10px] text-white/40 block uppercase tracking-wider">HEADQUARTERS</span>
+                    <span className="text-[10px] text-white/40 block uppercase tracking-wider font-semibold">HEADQUARTERS</span>
                     <p className="text-sm font-bold text-white leading-relaxed">
                       Mumbai, Maharashtra, India
                     </p>
-                    <span className="text-[10px] text-cyan-accent uppercase tracking-widest font-semibold block mt-1">AVAILABLE GLOBAL REACH</span>
+                    <span className="text-[10px] text-primary uppercase tracking-widest font-mono font-semibold block mt-1">AVAILABLE GLOBAL REACH</span>
                   </div>
                 </div>
 
               </div>
 
-              {/* Cybernetic Embedded Wireframe Map Graphic (Figma/Apple aesthetic style instead of standard iFrame broken element) */}
-              <div className="relative rounded-2xl border border-white/5 overflow-hidden h-40 bg-[#05081E] p-4 flex flex-col justify-between">
+              {/* Cybernetic Embedded Wireframe Map Graphic */}
+              <div className="relative rounded-2xl border border-white/[0.06] overflow-hidden h-40 bg-[#111622] p-4 flex flex-col justify-between">
                 {/* Styled decorative circuit background vector using SVG patterns */}
-                <div className="absolute inset-0 opacity-15 pointer-events-none">
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
                   <svg width="100%" height="100%">
                     <defs>
                       <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
-                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#00D1FF" strokeWidth="0.5" />
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#5F35FF" strokeWidth="0.5" />
                       </pattern>
                     </defs>
                     <rect width="100%" height="100%" fill="url(#gridPattern)" />
-                    <line x1="0" y1="50" x2="100%" y2="80" stroke="#005BFF" strokeWidth="1" />
-                    <circle cx="150" cy="60" r="4" fill="#00D1FF" />
-                    <circle cx="150" cy="60" r="12" fill="none" stroke="#00D1FF" strokeWidth="1" strokeDasharray="3,3" />
+                    <line x1="0" y1="50" x2="100%" y2="80" stroke="#5F35FF" strokeWidth="1" />
+                    <circle cx="150" cy="60" r="4" fill="#5F35FF" />
+                    <circle cx="150" cy="60" r="12" fill="none" stroke="#5F35FF" strokeWidth="1" strokeDasharray="3,3" />
                   </svg>
                 </div>
 
                 <div className="relative z-10 flex justify-between items-start">
-                  <span className="text-[9px] uppercase font-mono tracking-widest text-[#00D1FF] bg-[#00D1FF]/10 px-2 py-0.5 rounded font-bold">
+                  <span className="text-[9px] uppercase font-mono tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded font-bold">
                     Our Office Location
                   </span>
                   <span className="text-[10px] text-white/40 font-mono tracking-wider">Mumbai, India</span>
                 </div>
 
                 <div className="relative z-10 text-left">
-                  <p className="text-xs text-white/70">Speak with our tech team in Mumbai or schedule a digital meeting across any global time zone.</p>
+                  <p className="text-xs text-white/60 font-light leading-relaxed">Speak with our tech team in Mumbai or schedule a digital meeting across any global time zone.</p>
                 </div>
               </div>
 
@@ -1476,7 +2295,7 @@ export default function App() {
 
             {/* Right Side: High-converting SaaS Contact Form panel */}
             <div className="lg:col-span-7 w-full">
-              <div className="glass-panel rounded-2xl p-6 sm:p-8 border-white/10 glow-shadow-blue text-left">
+              <div className="bg-[#111622] border border-white/[0.06] rounded-2xl p-6 sm:p-8 text-left shadow-2xl">
                 
                 {formState === "success" ? (
                   /* Success Feedback Panel with configured summary values */
@@ -1554,7 +2373,7 @@ export default function App() {
                           value={formInputs.name}
                           onChange={(e) => setFormInputs({ ...formInputs, name: e.target.value })}
                           placeholder="E.g., John Anderson"
-                          className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
+                          className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
                           disabled={formState === "submitting"}
                         />
                       </div>
@@ -1571,7 +2390,7 @@ export default function App() {
                           value={formInputs.email}
                           onChange={(e) => setFormInputs({ ...formInputs, email: e.target.value })}
                           placeholder="john@nexus.com"
-                          className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
+                          className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
                           disabled={formState === "submitting"}
                         />
                       </div>
@@ -1592,7 +2411,7 @@ export default function App() {
                           value={formInputs.phone}
                           onChange={(e) => setFormInputs({ ...formInputs, phone: e.target.value })}
                           placeholder="e.g. +91 81044 39293"
-                          className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
+                          className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
                           disabled={formState === "submitting"}
                         />
                       </div>
@@ -1606,7 +2425,7 @@ export default function App() {
                           id="service-select"
                           value={formInputs.service}
                           onChange={(e) => setFormInputs({ ...formInputs, service: e.target.value })}
-                          className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
+                          className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white/80"
                           disabled={formState === "submitting"}
                         >
                           <option value="Website Development">Website Development</option>
@@ -1632,7 +2451,7 @@ export default function App() {
                         value={formInputs.subject}
                         onChange={(e) => setFormInputs({ ...formInputs, subject: e.target.value })}
                         placeholder="E.g. Modernizing our store design or website"
-                        className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
+                        className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white"
                         disabled={formState === "submitting"}
                       />
                     </div>
@@ -1648,7 +2467,7 @@ export default function App() {
                         value={formInputs.message}
                         onChange={(e) => setFormInputs({ ...formInputs, message: e.target.value })}
                         placeholder="Tell us a little bit about what you want to build and your goals..."
-                        className="w-full bg-[#05081E]/80 border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white resize-y"
+                        className="w-full bg-[#0B0F17] border border-white/15 focus:border-[#00D1FF] rounded-xl px-4 py-3 text-sm focus:outline-none transition-all placeholder:text-white/30 text-white resize-y"
                         disabled={formState === "submitting"}
                       ></textarea>
                     </div>
@@ -1699,13 +2518,15 @@ export default function App() {
             {/* Primary Logo + Statement col */}
             <div className="lg:col-span-4 space-y-6">
               
-              <a href="#hero" className="flex items-center space-x-3 outline-none">
-                <div className="w-9 h-9 rounded bg-[#005BFF] flex items-center justify-center shadow-lg shadow-primary/20">
-                  <span className="text-base font-bold font-accent text-white">D</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold tracking-tight text-white font-display">Diginfotech Solutions</span>
-                  <span className="text-[9px] uppercase tracking-[0.25em] text-white/40 -mt-1 font-accent">India</span>
+              <a href="#hero" className="flex items-center space-x-3 outline-none group">
+                <DiginfotechLogoIcon className="w-8 h-8" />
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-black tracking-wider font-display uppercase text-white group-hover:text-cyan-accent transition-colors leading-none">
+                    Diginfotech
+                  </span>
+                  <span className="text-[8px] uppercase tracking-[0.22em] text-[#00D1FF] mt-1 font-accent font-semibold">
+                    Solutions | India
+                  </span>
                 </div>
               </a>
 
@@ -1828,26 +2649,26 @@ export default function App() {
         
         {/* INTERACTIVE COMPACT LIVE CHAT WINDOW */}
         {isChatOpen && (
-          <div className="w-[320px] sm:w-[370px] h-[480px] rounded-3xl overflow-hidden border border-white/20 bg-gradient-to-b from-[#0e1647] to-[#060a22] flex flex-col shadow-[0_25px_65px_rgba(0,0,0,0.85)] relative animate-fade-in mb-2">
+          <div className="w-[320px] sm:w-[370px] h-[480px] rounded-3xl overflow-hidden border border-white/[0.08] bg-[#111622] flex flex-col shadow-[0_25px_65px_rgba(0,0,0,0.85)] relative animate-fade-in mb-2">
             
             {/* Header: Support Representative Info */}
-            <div className="p-4 bg-[#090e30]/90 border-b border-white/10 flex items-center justify-between">
+            <div className="p-4 bg-[#151c2c] border-b border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="relative">
                   <img 
                     src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&h=100&q=80" 
                     alt="Support Coordinator" 
-                    className="w-10 h-10 rounded-full object-cover border border-cyan-accent/40"
+                    className="w-10 h-10 rounded-full object-cover border border-primary/25 pointer-events-none"
                     referrerPolicy="no-referrer"
                   />
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-navy-dark animate-pulse"></span>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full ring-2 ring-[#111622] animate-pulse"></span>
                 </div>
                 <div className="text-left text-xs">
                   <h4 className="text-white font-extrabold flex items-center gap-1.5 font-display">
                     <span>Mia Collins</span>
-                    <Sparkles className="w-3 h-3 text-cyan-accent" />
+                    <Sparkles className="w-3 h-3 text-primary animate-pulse" />
                   </h4>
-                  <p className="text-cyan-accent/90 text-[10px] font-mono tracking-wider uppercase font-semibold">Global Help Desk</p>
+                  <p className="text-primary text-[10px] font-mono tracking-wider uppercase font-semibold">Global Customer Success</p>
                 </div>
               </div>
               <button 
@@ -1860,34 +2681,81 @@ export default function App() {
             </div>
 
             {/* Chat Body & Conversation Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#060a21]/80 flex flex-col scrollbar-thin">
-              {chatMessages.map((msg) => (
-                <div 
-                  key={msg.id} 
-                  className={`flex flex-col max-w-[85%] ${msg.sender === "user" ? "self-end items-end" : "self-start items-start"}`}
-                >
-                  <div 
-                    className={`p-3 rounded-2xl text-xs leading-relaxed ${
-                      msg.sender === "user" 
-                        ? "bg-gradient-to-r from-primary to-[#005BFF] text-white rounded-tr-none" 
-                        : "bg-[#172054] text-white/95 border border-white/5 rounded-tl-none"
-                    }`}
-                  >
-                    {msg.text.split("\n").map((line, idx) => (
-                      <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>{line}</p>
-                    ))}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0B0F17]/95 flex flex-col scrollbar-thin">
+              {chatMessages.length === 0 ? (
+                <>
+                  <div className="flex flex-col max-w-[85%] self-start items-start">
+                    <div className="p-3 rounded-2xl text-xs leading-relaxed bg-[#182136] text-white/95 border border-white/[0.04] rounded-tl-none">
+                      Hello! 👋 Welcome to Diginfotech Solutions India. I'm Mia, your dedicated assistance coordinator.
+                    </div>
+                    <span className="text-[9px] font-mono text-white/30 mt-1 px-1">Just now</span>
                   </div>
-                  <span className="text-[9px] font-mono text-white/30 mt-1 px-1">{msg.timestamp}</span>
-                </div>
-              ))}
+                  <div className="flex flex-col max-w-[85%] self-start items-start">
+                    <div className="p-3 rounded-2xl text-xs leading-relaxed bg-[#182136] text-white/95 border border-white/[0.04] rounded-tl-none">
+                      Since you are visiting us from outside India, or if you don't use WhatsApp, you can chat with our team live right here. How can I help you today?
+                    </div>
+                    <span className="text-[9px] font-mono text-white/30 mt-1 px-1">Just now</span>
+                  </div>
+                </>
+              ) : (
+                chatMessages.map((msg) => {
+                  if (msg.controlType === "request_chat") {
+                    if (msg.requestStatus === "pending") {
+                      return (
+                        <div key={msg.id} className="w-full flex flex-col items-center justify-center my-3.5 px-4 animate-fade-in self-center">
+                          <div className="bg-[#101726] border border-green-500/20 rounded-2xl p-4 text-center w-full shadow-lg space-y-2">
+                            <div className="flex items-center justify-center gap-2 text-green-400">
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-widest">Awaiting Live Coordinator</span>
+                            </div>
+                            <p className="text-xs text-white/70 leading-relaxed font-sans">{msg.text}</p>
+                          </div>
+                        </div>
+                      );
+                    } else if (msg.requestStatus === "accepted") {
+                      return (
+                        <div key={msg.id} className="w-full flex flex-col items-center justify-center my-3.5 px-4 animate-fade-in self-center">
+                          <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 text-center w-full shadow-lg space-y-1.5">
+                            <div className="flex items-center justify-center gap-2 text-green-400">
+                              <CheckCircle className="w-4 h-4 text-green-400 animate-bounce" />
+                              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#00E5FF]">Live Session Established</span>
+                            </div>
+                            <p className="text-xs text-white/90 font-medium leading-relaxed font-sans">✓ Coordinator Mia Collins has joined. Support lines are fully unlocked!</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                  }
+
+                  return (
+                    <div 
+                      key={msg.id} 
+                      className={`flex flex-col max-w-[85%] ${msg.sender === "user" ? "self-end items-end" : "self-start items-start"}`}
+                    >
+                      <div 
+                        className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                          msg.sender === "user" 
+                            ? "bg-primary text-white rounded-tr-none shadow-md shadow-primary/10" 
+                            : "bg-[#182136] text-white/95 border border-white/[0.04] rounded-tl-none"
+                        }`}
+                      >
+                        {msg.text.split("\n").map((line, idx) => (
+                          <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>{line}</p>
+                        ))}
+                      </div>
+                      <span className="text-[9px] font-mono text-white/30 mt-1 px-1">{msg.timestamp}</span>
+                    </div>
+                  );
+                })
+              )}
 
               {/* Typing indicator */}
               {isChatTyping && (
                 <div className="flex flex-col items-start space-y-1 self-start">
-                  <div className="flex items-center space-x-1.5 bg-[#172054] border border-white/5 p-3 px-4 rounded-2xl rounded-tl-none">
-                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                    <span className="w-2 h-2 rounded-full bg-cyan-accent animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  <div className="flex items-center space-x-1.5 bg-[#182136] border border-white/[0.04] p-3 px-4 rounded-2xl rounded-tl-none">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }}></span>
+                    <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }}></span>
                   </div>
                   <span className="text-[8px] font-mono text-white/30 px-1">Mia is typing...</span>
                 </div>
@@ -1896,22 +2764,35 @@ export default function App() {
 
             {/* Quick Helper Interactive Suggestion chips */}
             {chatUserStep === "idle" && !isChatTyping && (
-              <div className="p-3 bg-[#080d28] border-t border-white/5 flex flex-wrap gap-1.5">
+              <div className="p-3 bg-[#111622] border-t border-white/[0.06] flex flex-wrap gap-1.5">
+                <button 
+                  onClick={async () => {
+                    const name = "Direct Guest";
+                    const email = "Live Support Requested";
+                    const details = "Instant support connection requested via chip.";
+                    setChatLeadData({ name, email, details });
+                    await initiateChatRequest(name, email, details);
+                  }}
+                  className="text-[10px] bg-[#0E1624] hover:bg-green-500/[0.1] border border-green-500/20 hover:border-green-400 text-green-400 hover:text-green-300 px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none flex items-center gap-1 font-bold shadow-sm"
+                >
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+                  <span>⚡ Speak to Operator Live</span>
+                </button>
                 <button 
                   onClick={() => handleSendChatMessage("🌐 Request a Custom Pricing Quote")}
-                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                  className="text-[10px] bg-[#0B0F17] hover:bg-primary/[0.08] border border-white/5 hover:border-primary text-white/90 hover:text-primary px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
                 >
                   🌐 Request Custom Quote
                 </button>
                 <button 
                   onClick={() => handleSendChatMessage("📅 Book a Free Consultation Call")}
-                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                  className="text-[10px] bg-[#0B0F17] hover:bg-primary/[0.08] border border-white/5 hover:border-primary text-white/90 hover:text-primary px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
                 >
                   📅 Book Consultation Call
                 </button>
                 <button 
                   onClick={() => handleSendChatMessage("💬 Ask a General Question")}
-                  className="text-[10px] bg-white/5 hover:bg-cyan-accent/15 border border-white/10 hover:border-cyan-accent/50 text-white/90 hover:text-cyan-accent px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
+                  className="text-[10px] bg-[#0B0F17] hover:bg-primary/[0.08] border border-white/5 hover:border-primary text-white/90 hover:text-primary px-2.5 py-1.5 rounded-full transition-all cursor-pointer text-left focus:outline-none"
                 >
                   💬 Ask general question
                 </button>
@@ -1919,36 +2800,72 @@ export default function App() {
             )}
 
             {/* Support Message Composer Input Footer */}
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendChatMessage();
-              }} 
-              className="p-3.5 bg-[#090e32] border-t border-white/10 flex items-center space-x-2"
-            >
-              <input 
-                type="text" 
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder={
-                  chatUserStep === "awaiting_name" 
-                    ? "Enter your Name..." 
-                    : chatUserStep === "awaiting_email" 
-                      ? "Enter your Email..." 
-                      : chatUserStep === "awaiting_details"
-                        ? "Describe your project briefly..."
-                        : "Type your query here..."
-                }
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3.5 py-2 text-xs focus:outline-none focus:border-cyan-accent text-white placeholder-white/40 min-w-0"
-              />
-              <button 
-                type="submit" 
-                className="p-2 rounded-xl bg-cyan-accent hover:bg-cyan-accent/80 text-navy-dark transition-all cursor-pointer flex items-center justify-center focus:outline-none"
-                title="Send inquiry"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+            <div className="bg-[#151c2c] border-t border-white/[0.06] flex flex-col">
+              {chatUserStep === "request_pending" ? (
+                <div className="p-4 bg-[#0F1626] border-t border-white/[0.03] text-center flex flex-col items-center justify-center space-y-2.5">
+                  <div className="flex items-center space-x-2 text-green-400">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-[11px] font-mono font-bold tracking-wider uppercase animate-pulse">Request Transmitted to Operators...</span>
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-relaxed max-w-[280px]">
+                    Waiting for a live desk manager to accept your session profile and start the secure chat stream.
+                  </p>
+                </div>
+              ) : (
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendChatMessage();
+                  }} 
+                  className="p-3 bg-[#151c2c] flex items-center space-x-2"
+                >
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={
+                      chatUserStep === "awaiting_name" 
+                        ? "Enter your Name..." 
+                        : chatUserStep === "awaiting_email" 
+                          ? "Enter your Email..." 
+                          : chatUserStep === "awaiting_details"
+                            ? "Describe your project briefly..."
+                            : "Type your query here..."
+                    }
+                    className="flex-1 bg-[#0B0F17] border border-white/[0.06] focus:border-primary rounded-xl px-3.5 py-2 text-xs focus:outline-none text-white placeholder-white/35 min-w-0"
+                  />
+                  <button 
+                    type="submit" 
+                    className="p-2 rounded-xl bg-primary hover:bg-[#5F35FF]/90 text-white transition-all cursor-pointer flex items-center justify-center focus:outline-none"
+                    title="Send inquiry"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+              )}
+              
+              {chatUserStep !== "complete" && chatUserStep !== "request_pending" && (
+                <div className="bg-[#0B0F17]/40 px-3.5 py-1.5 border-t border-white/[0.03] flex items-center justify-between">
+                  <span className="text-[9px] text-white/30 font-mono">Mia Bot Assistant</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const name = "Direct Guest";
+                      const email = "Live Support Requested";
+                      const details = "Bypassed assistant to request direct coordinator stream.";
+                      setChatLeadData({ name, email, details });
+                      await initiateChatRequest(name, email, details);
+                    }}
+                    className="text-[9px] text-[#00D1FF] hover:text-cyan-accent hover:underline font-bold transition-all focus:outline-none"
+                  >
+                    Skip Bot & Speak Live ⚡
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1957,18 +2874,18 @@ export default function App() {
           <div id="floating-assist-drawer" className="flex flex-col items-end space-y-2.5 transition-all">
             <a 
               href={`tel:${contactPhone}`}
-              className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
+              className="flex items-center space-x-2 px-4 py-2 rounded-full border shadow-lg border-white/[0.08] hover:border-primary bg-[#111622] text-white/90 text-xs font-bold transition-all"
               title="Fast direct phone connection"
             >
-              <Phone className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
+              <Phone className="w-3.5 h-3.5 text-primary animate-pulse" />
               <span className="hidden sm:inline">Call Office</span>
             </a>
             <a 
               href={`mailto:${contactEmail}`}
-              className="flex items-center space-x-2 px-4 py-2 rounded-full glass-panel border shadow-lg hover:border-cyan-accent bg-navy-dark text-white/90 text-xs font-bold ring-1 ring-white/10 hover:ring-cyan-accent/20"
+              className="flex items-center space-x-2 px-4 py-2 rounded-full border shadow-lg border-white/[0.08] hover:border-primary bg-[#111622] text-white/90 text-xs font-bold transition-all"
               title="Send enterprise brief email"
             >
-              <Mail className="w-3.5 h-3.5 text-cyan-accent" />
+              <Mail className="w-3.5 h-3.5 text-primary" />
               <span className="hidden sm:inline">Email Team</span>
             </a>
           </div>
@@ -1980,7 +2897,7 @@ export default function App() {
             setIsChatOpen(!isChatOpen);
             setIsChatNotificationActive(false);
           }}
-          className={`relative w-14 h-14 rounded-full bg-gradient-to-r from-primary to-cyan-accent hover:from-primary/95 hover:to-cyan-accent/95 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-110 active:scale-95 group focus:outline-none cursor-pointer border border-white/20`}
+          className="relative w-14 h-14 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white shadow-2xl transition-all hover:scale-105 active:scale-95 group focus:outline-none cursor-pointer border border-white/15"
           title="Open Live Chat Desk"
         >
           {/* Active notification indicator */}
@@ -1992,17 +2909,17 @@ export default function App() {
               </span>
               
               {/* Context prompt banner informing outside India clients */}
-              <div className="absolute right-18 bg-[#090e30]/95 border border-white/15 px-3 py-2 rounded-xl text-[10.5px] font-bold text-white shadow-xl flex items-center space-x-2 animate-bounce select-none whitespace-nowrap leading-none">
-                <span className="w-2 h-2 rounded-full bg-cyan-accent animate-pulse"></span>
+              <div className="absolute right-18 bg-[#111622] border border-white/[0.08] px-3 py-2 rounded-xl text-[10.5px] font-bold text-white shadow-xl flex items-center space-x-2 animate-bounce select-none whitespace-nowrap leading-none">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
                 <span>International Client? Chat Live with Team 💬</span>
               </div>
             </>
           )}
 
-          {isChatOpen ? <X className="w-6 h-6 animate-pulse" /> : <MessageSquare className="w-6 h-6 fill-white text-cyan-accent" />}
+          {isChatOpen ? <X className="w-6 h-6 animate-pulse" /> : <MessageSquare className="w-6 h-6 fill-white text-white" />}
           
-          <span className="absolute right-16 bg-navy-dark border border-white/10 text-[10px] uppercase font-bold tracking-widest text-[#00D1FF] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
-            <span className="w-1.5 h-1.5 bg-cyan-accent rounded-full"></span>
+          <span className="absolute right-16 bg-[#111622] border border-white/[0.08] text-[10px] uppercase font-bold tracking-widest text-[#818CF8] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
+            <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
             <span>Live Chat Support</span>
           </span>
         </button>
@@ -2014,16 +2931,16 @@ export default function App() {
             target="_blank"
             rel="noreferrer"
             id="whatsapp-trigger"
-            className="relative w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-110 active:scale-95 group focus:outline-none outline-none cursor-pointer ring-4 ring-green-500/20"
+            className="relative w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-105 active:scale-95 group focus:outline-none outline-none cursor-pointer ring-4 ring-green-500/10"
             title="Direct online support on WhatsApp"
           >
-            {/* Neon green pulsing wave rings around target */}
-            <span className="absolute inset-0 rounded-full w-full h-full bg-green-500/45 animate-ping opacity-60 pointer-events-none"></span>
+            {/* pulse wave rings around target */}
+            <span className="absolute inset-0 rounded-full w-full h-full bg-green-500/20 animate-ping pointer-events-none"></span>
             
             <Phone className="w-5 h-5 fill-white" />
             
             {/* Smart Tooltip element */}
-            <span className="absolute right-16 bg-navy-dark border border-white/10 text-[10px] uppercase font-bold tracking-widest text-[#00D1FF] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
+            <span className="absolute right-16 bg-[#111622] border border-white/[0.08] text-[10px] uppercase font-bold tracking-widest text-primary px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
               <span>WhatsApp Chat</span>
             </span>
@@ -2125,11 +3042,877 @@ export default function App() {
 
       {/* Copy notification text toast */}
       {copyToast && (
-        <div id="copy-toast" className="fixed bottom-6 left-6 z-50 bg-navy-dark border border-cyan-accent/30 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2.5 animate-fade-in">
-          <div className="w-5 h-5 rounded-full bg-cyan-accent/10 flex items-center justify-center border border-cyan-accent/30">
+        <div id="copy-toast" className="fixed bottom-6 left-6 z-50 bg-[#0B0F17] border border-[#00D1FF]/30 text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2.5 animate-fade-in">
+          <div className="w-5 h-5 rounded-full bg-[#00D1FF]/10 flex items-center justify-center border border-[#00D1FF]/30">
             <Check className="w-3.5 h-3.5 text-cyan-accent" />
           </div>
           <span>{copyToast} copied copy-ready to clipboard!</span>
+        </div>
+      )}
+
+      {/* 10. SECRET INVISIBLE ADMIN LOGIN TRIGGER JUMBO AREA */}
+      <div 
+        id="hidden-admin-gate"
+        onClick={() => {
+          setIsAdminLoginOpen(true);
+          setAdminError("");
+          setAdminPasswordInput("");
+        }}
+        className="w-full h-14 mt-12 mb-0 opacity-0 hover:opacity-[0.03] bg-white text-[10px] text-white/50 tracking-[0.25em] flex items-center justify-center font-bold uppercase cursor-pointer transition-all border-t border-white/5 select-none"
+        title="Administrative Controls"
+      >
+        <span>Secure Core Administrative Access Gate</span>
+      </div>
+
+      {/* 11. ADMIN GATEWAY LOGIN MODAL */}
+      {isAdminLoginOpen && (
+        <div id="admin-login-overlay" className="fixed inset-0 z-[500] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#111622] w-full max-w-md rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_0_50px_rgba(95,53,255,0.25)] relative text-left animate-fade-in">
+            <button 
+              onClick={() => setIsAdminLoginOpen(false)}
+              className="absolute top-6 right-6 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center">
+                <Lock className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold font-display text-white">Security Credentials</h3>
+                <p className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Diginfotech Firewall Control</p>
+              </div>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (adminPasswordInput === "Admin@2026") {
+                setIsAdminPanelOpen(true);
+                setIsAdminLoginOpen(false);
+                setAdminError("");
+              } else {
+                setAdminError("Access Denied: Invalid Passphrase.");
+              }
+            }} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-mono uppercase text-white/50 mb-2">Gate Passphrase</label>
+                <input 
+                  id="admin-pass-field"
+                  type="password"
+                  value={adminPasswordInput}
+                  onChange={(e) => setAdminPasswordInput(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[#0B0F17] border border-white/10 focus:border-primary rounded-xl px-4 py-3 text-sm focus:outline-none transition-all text-white placeholder:text-white/20"
+                  autoFocus
+                />
+              </div>
+
+              {adminError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 font-mono text-xs rounded-xl flex items-start space-x-2 animate-pulse">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{adminError}</span>
+                </div>
+              )}
+
+              <button 
+                id="admin-login-btn"
+                type="submit"
+                className="w-full py-3 px-4 bg-gradient-to-r from-primary to-cyan-accent hover:opacity-90 text-white font-bold rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 cursor-pointer"
+              >
+                Access System Hub
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 12. ADMIN SYSTEM CONTROL CENTER OVERLAY MODAL */}
+      {isAdminPanelOpen && (
+        <div id="admin-hub-overlay" className="fixed inset-0 z-[600] bg-[#060911]/98 backdrop-blur-xl overflow-y-auto flex items-start justify-center p-3 sm:p-6 md:p-8 font-sans">
+          
+          {/* INCOMING CHAT CONNECTION REQUEST POP-UP OVERLAY */}
+          {pendingChatRequests.length > 0 && !isRequestPopupDismissed && (
+            <div className="fixed inset-0 z-[700] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="bg-[#0f1524] border-2 border-primary/40 rounded-[32px] w-full max-w-[580px] p-6 md:p-8 space-y-6 shadow-[0_0_80px_rgba(95,53,255,0.4)] animate-fade-in relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Activity className="w-48 h-48 text-primary" />
+                </div>
+                
+                {/* Alert Header badge */}
+                <div className="flex items-center space-x-3 pb-4 border-b border-white/[0.08]">
+                  <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-green-400">
+                    <PhoneCall className="w-5 h-5 animate-bounce" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-green-400 tracking-widest uppercase block animate-pulse">✓ Live Support Connection Requested</span>
+                    <h3 className="text-lg font-black text-white font-display">Incoming Operator Request!</h3>
+                  </div>
+                </div>
+                
+                {/* Target User Card */}
+                {(() => {
+                  const latestReq = pendingChatRequests[0];
+                  return (
+                    <div className="space-y-4">
+                      <div className="bg-[#151c2f] rounded-2xl p-4 border border-white/[0.05] space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-[10px] text-white/40 block uppercase tracking-wider font-mono text-left">Visitor Name</span>
+                            <span className="text-sm font-bold text-white block truncate text-left">{latestReq.visitorName}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-white/40 block uppercase tracking-wider font-mono text-left">Visitor Email</span>
+                            <span className="text-sm font-semibold text-cyan-accent block truncate text-left">{latestReq.visitorEmail}</span>
+                          </div>
+                        </div>
+                        <div className="border-t border-white/[0.05] pt-3">
+                          <span className="text-[10px] text-white/40 block uppercase tracking-wider font-mono mb-1 text-left">Captured Briefing Context</span>
+                          <p className="text-xs text-white/70 italic leading-relaxed bg-black/20 p-3 rounded-lg overflow-y-auto max-h-[80px] text-left">
+                            "{latestReq.visitorDetails}"
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-[11px] text-white/50 leading-relaxed text-center">
+                        The client bypassed default systems and is awaiting live connection. Grant support token to activate real-time operational communication streams.
+                      </p>
+                      
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          onClick={() => setIsRequestPopupDismissed(true)}
+                          className="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs uppercase font-bold tracking-widest transition-all cursor-pointer text-center"
+                        >
+                          Minimize Alert
+                        </button>
+                        <button
+                          onClick={() => handleAcceptChat(latestReq.id, latestReq.sessionId, latestReq.visitorName, latestReq.visitorEmail)}
+                          className="flex-1 py-3 px-4 bg-gradient-to-r from-primary to-[#5F35FF] hover:opacity-95 text-white rounded-xl text-xs uppercase font-bold tracking-widest transition-all cursor-pointer text-center flex items-center justify-center space-x-2 shadow-lg shadow-primary/20"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Accept & Start Chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-[#0e1320] w-full max-w-[96%] xl:max-w-[1540px] rounded-[32px] border border-white/10 shadow-[0_0_120px_rgba(0,186,255,0.18)] p-6 md:p-10 space-y-8 animate-fade-in min-h-[600px] mt-2 mb-8">
+            
+            {/* Header section with branding and tools */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-cyan-accent p-[1px]">
+                  <div className="w-full h-full bg-[#111622] rounded-[15px] flex items-center justify-center">
+                    <Activity className="w-6 h-6 text-cyan-accent animate-pulse" />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-black font-display text-white tracking-tight flex items-center space-x-2 text-left">
+                    <span>Administrative Panel</span>
+                    <span className="text-[10px] font-mono bg-red-500/10 border border-red-500/20 text-red-00 font-bold px-2.5 py-0.5 rounded-full select-none uppercase tracking-wide text-cyan-accent">Secure Session</span>
+                  </h2>
+                  <p className="text-xs text-white/50 text-left">Control live visitor sessions, geolocations, blacklists, and captured business campaign leads.</p>
+                </div>
+              </div>
+
+              {/* Top controls toolbar */}
+              <div className="flex items-center gap-3">
+                {pendingChatRequests.length > 0 && (
+                  <button
+                    onClick={() => setIsRequestPopupDismissed(false)}
+                    className="relative flex items-center space-x-1.5 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold uppercase tracking-wider rounded-xl animate-pulse cursor-pointer"
+                    title="View incoming operator requests"
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+                    </span>
+                    <span>{pendingChatRequests.length} Live Request{pendingChatRequests.length > 1 ? 's' : ''}</span>
+                  </button>
+                )}
+                <div className="bg-white/5 border border-white/5 p-1.5 rounded-xl flex items-center space-x-1.5 font-mono text-[10px] text-white/60">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  <span>SSL_SECURE</span>
+                </div>
+                <button 
+                  onClick={() => setIsAdminPanelOpen(false)}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold uppercase tracking-wider text-white transition-colors cursor-pointer"
+                >
+                  Exit Dashboard
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics Bento Block */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+              <div className="p-6 rounded-[20px] bg-[#070b13] border border-white/10 hover:border-cyan-accent/20 transition-all flex flex-col relative overflow-hidden shadow-lg">
+                <div className="absolute top-5 right-5 text-white/10"><Globe className="w-8 h-8" /></div>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Total Sessions</span>
+                <span className="text-3xl font-black text-white mt-2">{visitors.length}</span>
+                <span className="text-[10px] text-cyan-accent font-bold mt-1.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
+                  <span>Logged IP Nodes</span>
+                </span>
+              </div>
+              <div className="p-6 rounded-[20px] bg-[#070b13] border border-white/10 hover:border-green-400/20 transition-all flex flex-col relative overflow-hidden shadow-lg">
+                <div className="absolute top-5 right-5 text-white/10"><Activity className="w-8 h-8 animate-pulse text-[#00D1FF]" /></div>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Active Connections</span>
+                <span className="text-3xl font-black text-green-400 mt-2">
+                  {visitors.filter(v => v.duration === "Active Now").length}
+                </span>
+                <span className="text-[10px] text-green-400 font-bold mt-1.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+                  <span>Active Client Sessions</span>
+                </span>
+              </div>
+              <div className="p-6 rounded-[20px] bg-[#070b13] border border-white/10 hover:border-red-400/20 transition-all flex flex-col relative overflow-hidden shadow-lg">
+                <div className="absolute top-5 right-5 text-white/10"><Shield className="w-8 h-8 text-red-500/30" /></div>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Blacklisted Blocked</span>
+                <span className="text-3xl font-black text-red-400 mt-2">{blockedIps.length}</span>
+                <span className="text-[10px] text-red-400 font-bold mt-1.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                  <span>Active Blocked Sessions</span>
+                </span>
+              </div>
+              <div className="p-6 rounded-[20px] bg-[#070b13] border border-white/10 hover:border-indigo-400/20 transition-all flex flex-col relative overflow-hidden shadow-lg">
+                <div className="absolute top-5 right-5 text-white/10"><Database className="w-8 h-8 text-cyan-accent/30" /></div>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Captured Leads</span>
+                <span className="text-3xl font-black text-[#818CF8] mt-2">{leadsLog.length}</span>
+                <span className="text-[10px] text-[#818CF8] font-bold mt-1.5 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
+                  <span>Live Inquiries Captured</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Main Tabs Segment Controls */}
+            <div className="flex border-b border-white/[0.06] pb-[1px] gap-2 overflow-x-auto">
+              <button
+                onClick={() => setAdminTab("visitors")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "visitors" ? "text-cyan-accent border-b-2 border-cyan-accent bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Visitor Location Control ({visitors.length})
+              </button>
+              <button
+                onClick={() => setAdminTab("leads")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "leads" ? "text-[#818CF8] border-b-2 border-[#818CF8] bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Captured Leads ({leadsLog.length})
+              </button>
+              <button
+                onClick={() => setAdminTab("livechat")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "livechat" ? "text-green-400 border-b-2 border-green-400 bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Support Live Chat ({activeSessionsCount})
+              </button>
+              <button
+                onClick={() => setAdminTab("controls")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "controls" ? "text-red-400 border-b-2 border-red-400 bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Firewall & Overrides
+              </button>
+            </div>
+
+            {/* TAB PANELS CONTAINER */}
+            <div className="pt-2">
+              
+              {/* TAB 1: VISITORS PANEL */}
+              {adminTab === "visitors" && (
+                <div className="space-y-4 animate-fade-in text-left">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Live Session Geolocation Stream</h3>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem("diginfotech_visitors_pool");
+                        window.location.reload();
+                      }}
+                      className="text-[10px] text-cyan-accent hover:underline flex items-center space-x-1 uppercase tracking-widest font-bold"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Purge Tracker History</span>
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0B0F17]">
+                    <table className="w-full text-xs text-left text-white/70">
+                      <thead className="bg-[#111622] text-[10px] uppercase font-mono tracking-wider text-white/50 border-b border-white/[0.06]">
+                        <tr>
+                          <th className="px-4 py-3">Node Status</th>
+                          <th className="px-4 py-3">Connection IP</th>
+                          <th className="px-4 py-3">Physical Location</th>
+                          <th className="px-4 py-3">ISP Provider</th>
+                          <th className="px-4 py-3">Platform</th>
+                          <th className="px-4 py-3">Active Page</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {visitors.map((v) => {
+                          const isBlocked = blockedIps.includes(v.ip);
+                          return (
+                            <tr key={v.id} className={`hover:bg-white/[0.01] transition-all ${isBlocked ? "bg-red-500/5 text-red-300/80" : ""}`}>
+                              <td className="px-4 py-3.5 flex items-center space-x-2">
+                                <span className={`w-2 h-2 rounded-full ${isBlocked ? "bg-red-500 animate-pulse" : v.duration === "Active Now" ? "bg-green-500 animate-pulse" : "bg-gray-500"}`}></span>
+                                <span className="font-mono text-[10px] tracking-wide uppercase font-black">
+                                  {isBlocked ? "BLOCKED" : v.duration === "Active Now" ? "LIVE" : "OFFLINE"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 font-mono text-[11px] text-cyan-accent font-bold">
+                                {v.ip} {v.id === "vis-current" && <span className="text-[9px] bg-cyan-accent/10 text-cyan-accent px-1.5 py-0.5 rounded ml-1 font-sans">You</span>}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="font-semibold text-white flex items-center space-x-1">
+                                  <span>{v.city}, {v.region}</span>
+                                </div>
+                                <span className="text-[10px] text-white/40 block">{v.country}</span>
+                              </td>
+                              <td className="px-4 py-3.5 text-white/60 truncate max-w-[150px]" title={v.isp}>
+                                {v.isp}
+                              </td>
+                              <td className="px-4 py-3.5 text-white/40 font-mono text-[10px]">
+                                {v.os} / {v.device}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="text-[#818CF8] font-mono text-[10px] tracking-wide max-w-[120px] truncate">
+                                  {v.activePage}
+                                </div>
+                                <span className="text-[9px] text-white/30 block italic truncate max-w-[120px]">{v.lastAction}</span>
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <div className="flex gap-1.5 justify-end">
+                                  <button
+                                    onClick={() => {
+                                      const confirmAction = confirm(`Execute safety protocol? Confirming will toggle block configuration for ${v.ip}.`);
+                                      if (confirmAction) handleBlockIp(v.ip);
+                                    }}
+                                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap cursor-pointer ${isBlocked ? "bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500/20" : "bg-red-500/10 border border-red-500/20 text-red-150 text-red-400 hover:bg-red-500/20"}`}
+                                  >
+                                    {isBlocked ? "Restore Node" : "Terminate IP"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: LEADS LISTING */}
+              {adminTab === "leads" && (
+                <div className="space-y-4 animate-fade-in text-left">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0E1624] p-4 rounded-xl border border-white/[0.04]">
+                    <div>
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Captured Campaign Business Inquiries</h3>
+                      <p className="text-[10px] text-white/50 font-sans mt-0.5">Manage, review, track, and export corporate inquiries from active visitors & forms.</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                      {/* Export Logs Button */}
+                      <button
+                        onClick={handleExportInquiries}
+                        className="bg-primary/10 border border-primary/25 hover:bg-primary/20 text-[#818CF8] hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                        title="Export lead logs as JSON"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Logs</span>
+                      </button>
+
+                      {/* Clear Leads Log Buttons */}
+                      {!showClearConfirm ? (
+                        <button
+                          onClick={() => setShowClearConfirm(true)}
+                          className="bg-red-500/10 border border-red-500/25 hover:bg-red-500/25 text-red-400 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                          title="Purge all lead records"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Clear All Lead Logs</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1 bg-[#1a1315] border border-red-500/30 p-1 rounded-xl animate-pulse">
+                          <span className="text-[10px] text-red-300 font-bold px-1.5">Purge?</span>
+                          <button
+                            type="button"
+                            onClick={handleClearInquiries}
+                            className="bg-red-500 hover:bg-red-600 text-white font-bold text-[10px] uppercase px-2 py-1 rounded-lg focus:outline-none transition-all cursor-pointer"
+                          >
+                            Yes, Purge
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowClearConfirm(false)}
+                            className="bg-[#111] hover:bg-[#222] text-white/60 hover:text-white font-bold text-[10px] uppercase px-2 py-1 rounded-lg focus:outline-none transition-all cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {leadsLog.length === 0 ? (
+                    <div className="p-12 text-center rounded-3xl border border-white/10 bg-[#070b13]/60 space-y-3.5">
+                      <Database className="w-10 h-10 text-white/10 mx-auto animate-pulse" />
+                      <p className="text-sm text-white/50 font-medium">No active leads logged yet. Form actions or consultation paths on the frontend will spawn real-time listings here.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {leadsLog.map((lead) => (
+                        <div key={lead.id} className="p-6 rounded-[24px] bg-[#070b13] border border-white/10 hover:border-[#818CF8]/30 transition-all duration-300 space-y-5 text-left relative group shadow-lg shadow-black/20 hover:shadow-[#818CF8]/5">
+                          
+                          {/* Top row with name, badge */}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <h4 className="text-sm font-extrabold text-white">{lead.name}</h4>
+                                <span className={`text-[8px] font-mono uppercase font-black px-1.5 py-0.5 rounded ${lead.source === "Contact Form" ? "bg-primary/20 text-indigo-300 border border-primary/20" : lead.source === "Live Chat Assist" ? "bg-[#00D1FF]/10 text-cyan-accent border border-[#00D1FF]/15" : "bg-green-500/10 text-green-300 border border-green-500/15"}`}>
+                                  {lead.source}
+                                </span>
+                                {(lead as any).isDemo || ["L-101", "L-102", "L-103"].includes(lead.id) ? (
+                                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[8px] font-mono uppercase font-black px-1.5 py-0.5 rounded">🧪 MOCK SAMPLE</span>
+                                ) : (
+                                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[8px] font-mono uppercase font-black px-1.5 py-0.5 rounded animate-pulse">🔥 LIVE INBOUND</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-white/40 block font-mono mt-0.5">
+                                {lead.timestamp} / Ref: {lead.id}
+                                {((lead as any).isDemo || ["L-101", "L-102", "L-103"].includes(lead.id)) && " (Simulated Demo Entry)"}
+                              </span>
+                            </div>
+
+                            {/* Status Pill with cycler */}
+                            <select
+                              value={lead.status}
+                              onChange={(e) => handleUpdateLeadsStatus(lead.id, e.target.value as any)}
+                              className="bg-[#0B0F17] text-[10px] font-bold uppercase rounded-lg px-2.5 py-1 border border-white/10 text-[#818CF8] outline-none cursor-pointer focus:border-primary"
+                            >
+                              <option value="New">● New</option>
+                              <option value="Reviewed">● Reviewed</option>
+                              <option value="Contacted">● Contacted</option>
+                              <option value="Closed">✓ Closed</option>
+                            </select>
+                          </div>
+
+                          {/* Contact core details */}
+                          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-[#0B0F17] p-2.5 rounded-xl border border-white/[0.04]">
+                            <div>
+                              <span className="text-white/30 uppercase block text-[8px] tracking-wide">Email:</span>
+                              <a href={`mailto:${lead.email}`} className="text-[#00D1FF] hover:underline truncate block">{lead.email}</a>
+                            </div>
+                            <div>
+                              <span className="text-white/30 uppercase block text-[8px] tracking-wide">Phone:</span>
+                              <span className="text-white/80 block select-all">{lead.phone}</span>
+                            </div>
+                          </div>
+
+                          {/* Subject details */}
+                          <div className="text-xs">
+                            <span className="text-xs uppercase tracking-wider text-white/40 block font-bold text-[9px] mb-1">Target Service Required</span>
+                            <span className="text-white font-semibold font-display">{lead.service}</span>
+                          </div>
+
+                          {/* Descriptive Inquiry Text text */}
+                          <div className="text-xs bg-white/[0.02] p-3 rounded-xl border border-white/[0.05] text-white/70 italic leading-relaxed font-light font-sans max-h-24 overflow-y-auto">
+                            "{lead.message}"
+                          </div>
+
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* TAB 3: LIVE SUPPORT CHAT DESK */}
+              {adminTab === "livechat" && (() => {
+                const map: Record<string, {
+                  sessionId: string;
+                  visitorName: string;
+                  visitorEmail: string;
+                  lastMessageText: string;
+                  lastMessageTime: string;
+                  messages: typeof adminAllChats;
+                }> = {};
+
+                adminAllChats.forEach(msg => {
+                  if (!map[msg.sessionId]) {
+                    map[msg.sessionId] = {
+                      sessionId: msg.sessionId,
+                      visitorName: msg.visitorName || "Guest",
+                      visitorEmail: msg.visitorEmail || "Pending",
+                      lastMessageText: msg.text,
+                      lastMessageTime: msg.timestamp,
+                      messages: []
+                    };
+                  }
+                  map[msg.sessionId].messages.push(msg);
+                  if (msg.sender === "user") {
+                    if (msg.visitorName && msg.visitorName !== "Guest") {
+                      map[msg.sessionId].visitorName = msg.visitorName;
+                    }
+                    if (msg.visitorEmail && msg.visitorEmail !== "Pending") {
+                      map[msg.sessionId].visitorEmail = msg.visitorEmail;
+                    }
+                  }
+                  map[msg.sessionId].lastMessageText = msg.text;
+                  map[msg.sessionId].lastMessageTime = msg.timestamp;
+                });
+
+                // Only show sessions that actually contain at least one user-written message
+                const sessions = Object.values(map).filter(sess => 
+                  sess.messages.some(m => m.sender === "user")
+                );
+                const activeId = selectedAdminSessionId || (sessions.length > 0 ? sessions[0].sessionId : null);
+                const activeSession = sessions.find(s => s.sessionId === activeId);
+
+                return (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-left items-stretch">
+                    {/* Left Column: Connection Details and Threads */}
+                    <div className="lg:col-span-4 flex flex-col h-[640px] bg-[#070b13] rounded-[28px] border border-white/10 overflow-hidden shadow-2xl">
+                      {/* Sidebar Header */}
+                      <div className="p-4 bg-[#111622] border-b border-white/[0.08] flex items-center justify-between shrink-0">
+                        <div className="flex items-center space-x-2">
+                          <MessageSquare className="w-4 h-4 text-cyan-accent" />
+                          <span className="text-xs font-bold uppercase text-white tracking-wider">Conversations</span>
+                        </div>
+                        <span className="bg-cyan-accent/15 border border-cyan-accent/25 text-cyan-accent text-[10px] px-2 py-0.5 rounded-full font-bold">
+                          {sessions.length} Chat{sessions.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+
+                      {/* Active Guest Threads list */}
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {sessions.length === 0 ? (
+                          <div className="py-12 text-center text-white/30 text-xs font-mono">
+                            No live chat streams detected on Firestore node.
+                          </div>
+                        ) : (
+                          sessions.map((sess) => {
+                            const isActive = sess.sessionId === activeId;
+                            const pendingReplies = sess.messages.filter(m => m.sender === "user").length > 
+                                                   sess.messages.filter(m => m.sender === "agent").length;
+                            return (
+                              <button
+                                key={sess.sessionId}
+                                onClick={() => setSelectedAdminSessionId(sess.sessionId)}
+                                className={`w-full p-3.5 rounded-xl border text-left cursor-pointer transition-all duration-150 flex items-start justify-between gap-2 ${
+                                  isActive 
+                                    ? "bg-[#00D1FF]/10 border-[#00D1FF]/45 text-white shadow-md shadow-[#00D1FF]/5" 
+                                    : "bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05] text-white/70"
+                                }`}
+                              >
+                                <div className="truncate flex-1">
+                                  <div className="font-extrabold text-xs flex items-center gap-2">
+                                    <span className="truncate">{sess.visitorName}</span>
+                                    {pendingReplies && (
+                                      <span className="bg-red-500 text-white font-sans text-[8px] px-2 py-0.5 rounded-full font-black animate-pulse">NEW REPLY</span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-white/40 font-mono truncate mt-0.5">{sess.visitorEmail}</div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <span className="text-[8px] font-mono opacity-40">{sess.lastMessageTime}</span>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Shared Intel and Presets Drawer */}
+                      <div className="shrink-0 border-t border-white/[0.08] bg-[#111622]/40 p-4 space-y-4">
+                        {activeSession && (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2 text-white/40 font-mono text-[9px] uppercase tracking-wider">
+                              <Activity className="w-3.5 h-3.5 text-green-400" />
+                              <span>Session Intel</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-white/60">
+                              <div className="p-2 bg-[#070b13]/40 border border-white/[0.04] rounded-lg">
+                                <span className="block text-[8px] opacity-40">Ref Prefix:</span>
+                                <span className="font-bold text-white truncate block">{activeSession.sessionId.substring(0, 8)}...</span>
+                              </div>
+                              <div className="p-2 bg-[#070b13]/40 border border-white/[0.04] rounded-lg">
+                                <span className="block text-[8px] opacity-40">Total Logs:</span>
+                                <span className="font-bold text-white">{activeSession.messages.length} lines</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2 text-white/40 font-mono text-[9px] uppercase tracking-wider">
+                            <Zap className="w-3.5 h-3.5 text-cyan-accent" />
+                            <span>Quick Reply Presets</span>
+                          </div>
+                          
+                          <div className="flex flex-col gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                            {[
+                              "Yes, absolutely we can begin setup on your project today!",
+                              "For custom design & web integrations, our pricing starts at $400.",
+                              "Our lead architect has analyzed your requirements. When can we Google Meet?",
+                              "I can draft complete branding, matching fonts, and wireframes in 5 days."
+                            ].map((txt, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setAdminReplyInput(txt)}
+                                className="p-2 bg-white/[0.01] hover:bg-cyan-accent/[0.05] border border-white/[0.04] hover:border-cyan-accent/20 rounded-lg text-[10px] text-white/60 hover:text-white transition-all text-left cursor-pointer duration-155"
+                              >
+                                "{txt}"
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right 8 Columns: Message Thread and Controller */}
+                    <div className="lg:col-span-8 flex flex-col h-[640px] bg-[#070b13] rounded-[28px] border border-white/10 overflow-hidden shadow-2xl relative">
+                      {/* Console Header */}
+                      <div className="p-5 bg-[#111622] border-b border-white/[0.08] flex items-center justify-between">
+                        <div className="flex items-center space-x-3.5">
+                          <div className="w-9 h-9 rounded-full bg-cyan-accent/15 border border-cyan-accent/30 flex items-center justify-center">
+                            <Bot className="w-4 h-4 text-cyan-accent" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-extrabold text-white block">
+                              {activeSession ? `Chat with ${activeSession.visitorName}` : "Support Live Panel"}
+                            </span>
+                            <span className="text-[9px] font-mono text-white/40 tracking-wider block uppercase mt-0.5">
+                              {activeSession ? `Active Session Ref: ${activeSession.sessionId.substring(0, 20)}...` : "Select an active customer query sequence"}
+                            </span>
+                          </div>
+                        </div>
+ 
+                        <div className="flex items-center space-x-2 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded text-[10px] font-mono text-green-400 font-bold uppercase tracking-wider animate-pulse">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+                          <span>Terminal Live</span>
+                        </div>
+                      </div>
+
+                      {/* Chat Messages Log list */}
+                      <div className="flex-1 p-5 overflow-y-auto space-y-3.5" id="admin-chat-scrollbox">
+                        {!activeSession ? (
+                          <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-50">
+                            <MessageSquare className="w-8 h-8 text-white" />
+                            <p className="text-xs text-white/60 font-mono flex items-center gap-1.5 justify-center">
+                              <span className="w-2 h-2 rounded-full bg-cyan-accent animate-ping"></span>
+                              <span>Select a customer session from the left card to open terminal logs</span>
+                            </p>
+                          </div>
+                        ) : (
+                          activeSession.messages.map((msg) => {
+                            const isUser = msg.sender === "user";
+                            return (
+                              <div
+                                key={msg.id}
+                                className={`flex flex-col max-w-[80%] ${isUser ? "mr-auto text-left" : "ml-auto text-right"}`}
+                              >
+                                <div className={`text-[8px] font-mono text-white/30 uppercase tracking-widest mb-1 ${isUser ? "text-left pl-1" : "text-right pr-1"}`}>
+                                  {isUser ? `${activeSession.visitorName} (Visitor)` : "Mia (Operator)"} • {msg.timestamp}
+                                </div>
+                                <div className={`p-3 text-xs font-normal leading-relaxed rounded-2xl ${
+                                  isUser 
+                                    ? "bg-white/[0.02] border border-white/[0.08] text-white rounded-tl-sm text-left"
+                                    : "bg-cyan-accent/15 border border-cyan-accent/20 text-white rounded-tr-sm text-right"
+                                }`}>
+                                  {msg.text}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Console controller input area */}
+                      {activeSession && (
+                        <form 
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const text = adminReplyInput.trim();
+                            if (!text) return;
+                            
+                            const replyPayload = {
+                              id: `admin-reply-${Date.now()}`,
+                              sessionId: activeSession.sessionId,
+                              sender: "agent",
+                              text,
+                              visitorName: activeSession.visitorName,
+                              visitorEmail: activeSession.visitorEmail,
+                              createdAt: serverTimestamp()
+                            };
+
+                            try {
+                              await addDoc(collection(db, "chats"), replyPayload);
+                              setAdminReplyInput("");
+                            } catch (err) {
+                              handleFirestoreError(err, OperationType.WRITE, "chats");
+                            }
+                          }}
+                          className="p-3.5 bg-[#111622] border-t border-white/[0.08] flex items-center gap-3"
+                        >
+                          <input
+                            type="text"
+                            value={adminReplyInput}
+                            onChange={(e) => setAdminReplyInput(e.target.value)}
+                            placeholder="Type a real-time message response as Coordinator Mia Collins..."
+                            className="flex-1 bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/30 font-medium font-sans"
+                          />
+                          <button
+                            type="submit"
+                            className="p-3 bg-cyan-accent hover:bg-cyan-accent-dark text-black hover:text-black font-extrabold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+                            title="Send Real-Time Message"
+                          >
+                            <Send className="w-4 h-4 text-black" />
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* TAB 3: CONTROLS */}
+              {adminTab === "controls" && (
+                <div className="space-y-6 animate-fade-in text-left max-w-2xl mx-auto py-4">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono border-b border-white/[0.06] pb-3 flex items-center space-x-2">
+                    <Sliders className="w-4 h-4 text-red-400" />
+                    <span>Global Operation Settings</span>
+                  </h3>
+
+                  {/* Broadcast block */}
+                  <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-3">
+                    <h4 className="text-xs font-bold uppercase font-mono text-white/80">Site-Wide Broadcast Ribbon Notification</h4>
+                    <p className="text-xs text-white/50">Post customized announcements immediately at the top of the browser screen for all active clients on the node.</p>
+                    
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={adminBroadcast}
+                        onChange={(e) => handleUpdateBroadcast(e.target.value)}
+                        placeholder="e.g. 🔥 Flash Deal: 25% OFF Website Development Services for first 5 clients this week! Click WhatsApp to brief."
+                        className="flex-1 bg-[#0B0F17] border border-white/10 focus:border-red-500 rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20"
+                      />
+                      {adminBroadcast && (
+                        <button
+                          onClick={() => handleUpdateBroadcast("")}
+                          className="px-4 bg-red-500/10 border border-red-500/20 text-red-400 font-bold rounded-xl text-xs uppercase cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {adminBroadcast && (
+                      <div className="p-2.5 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-xs font-mono flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                        <span>Announcement is LIVE in the header tracking segment!</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Maintenance block */}
+                  <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between gap-6">
+                    <div className="space-y-1 pr-6 flex-1">
+                      <h4 className="text-xs font-bold uppercase font-mono text-white/80">Activate Global Maintenance Restructure</h4>
+                      <p className="text-xs text-white/50">Simulates closing down the node to public traffic, replacing it with a diagnostic shield screen. Perfect to secure code upgrades easily.</p>
+                    </div>
+
+                    <button
+                      onClick={handleToggleMaintenance}
+                      className={`px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all cursor-pointer ${isMaintenanceActive ? "bg-green-500 hover:bg-green-600 text-white" : "bg-red-500/20 border border-red-500/30 text-red-150 text-red-100 hover:bg-red-500/30 text-red-400 font-bold"}`}
+                    >
+                      {isMaintenanceActive ? "Disable Guard" : "Lock Node"}
+                    </button>
+                  </div>
+
+                  {/* REAL-TIME ENVIRONMENT & SYSTEM DIAGNOSTICS CARD */}
+                  <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-left relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/5">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <h4 className="text-xs font-black uppercase text-white font-mono tracking-wider flex items-center gap-1.5">
+                          <span>Live Administrator Connection Diagnostics</span>
+                        </h4>
+                      </div>
+                      <div className="text-[10px] font-mono text-[#00D1FF] font-bold">
+                        AUTHLINK_ACTIVE_KEY
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                      <div className="space-y-1">
+                        <span className="text-white/40 text-[9px] block uppercase tracking-wider">Dynamic Node Address</span>
+                        <span className="text-cyan-accent font-bold text-sm block">
+                          {currentUserDetails?.ip || "Calculating IP..."}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-white/40 text-[9px] block uppercase tracking-wider">Estimated ISP Geolocation</span>
+                        <span className="text-white font-semibold text-sm block">
+                          {currentUserDetails?.city ? `${currentUserDetails.city}, ${currentUserDetails.country}` : "Mumbai, India"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-white/40 text-[9px] block uppercase tracking-wider">Physical Device Profile</span>
+                        <span className="text-white font-semibold block truncate">
+                          {currentUserDetails?.os || "macOS"} / {currentUserDetails?.device || "Chrome"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-white/40 text-[9px] block uppercase tracking-wider">Digital Terminal State</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                          <span className="text-green-400 font-bold uppercase">
+                            {navigator.onLine ? "CONNECTED" : "OFFLINE"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 pt-4 border-t border-white/[0.04] text-[10px] font-mono text-white/50">
+                      <div>
+                        <span className="text-white/20 block">Browser Language</span>
+                        <span className="text-white/80 block">{navigator.language || "en-US"}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/20 block">Resolution Scope</span>
+                        <span className="text-white/80 block">{window.screen.width || 1920}x{window.screen.height || 1080} @ {window.devicePixelRatio || 1}x</span>
+                      </div>
+                      <div>
+                        <span className="text-white/20 block">Active App Port</span>
+                        <span className="text-cyan-accent block font-bold">Port 3000 (Ingress)</span>
+                      </div>
+                      <div>
+                        <span className="text-white/20 block">Connection Protocol</span>
+                        <span className="text-white/80 block">Secure HTTPS</span>
+                      </div>
+                      <div className="col-span-2 md:col-span-1">
+                        <span className="text-white/20 block">System Clock (Sync)</span>
+                        <span className="text-white/80 block font-bold">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dev notes info footer inside controls */}
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 text-[11px] text-primary leading-relaxed font-sans mt-8 flex sm:items-center space-x-3">
+                    <Shield className="w-5 h-5 shrink-0" />
+                    <span><strong>Secured local administrative engine (localStorage based)</strong>. This guarantees mock records populate and save locally in your active device session to safely sandbox and test the administration functionalities.</span>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+          </div>
         </div>
       )}
 

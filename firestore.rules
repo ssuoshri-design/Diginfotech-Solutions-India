@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Default-deny catch-all rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Reusable global validation helpers
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { 
+      return request.resource.data; 
+    }
+    
+    function existing() { 
+      return resource.data; 
+    }
+
+    // 3. Entity-specific schema validation
+    function isValidChat(data) {
+      let coreKeys = ['id', 'sessionId', 'sender', 'text', 'visitorName', 'visitorEmail', 'createdAt'];
+      return data.keys().hasAll(coreKeys) &&
+             (data.keys().size() == 7 || data.keys().size() == 10) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.sessionId is string && data.sessionId.size() <= 128 &&
+             data.sender is string && (data.sender == 'user' || data.sender == 'agent' || data.sender == 'system') &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
+             data.visitorName is string && data.visitorName.size() <= 128 &&
+             data.visitorEmail is string && data.visitorEmail.size() <= 128 &&
+             data.createdAt is timestamp &&
+             (data.keys().size() == 7 || (
+               data.get('controlType', '') == 'request_chat' &&
+               (data.get('requestStatus', '') == 'pending' || data.get('requestStatus', '') == 'accepted') &&
+               data.get('visitorDetails', '') is string && data.get('visitorDetails', '').size() <= 2000
+             ));
+    }
+
+    // 4. Secure collection matching routes
+    match /chats/{chatId} {
+      allow get: if isValidId(chatId);
+      
+      // Allow listing for guests and administration console
+      allow list: if true;
+
+      // Allow write create operations matching validation
+      allow create: if isValidId(chatId) && isValidChat(incoming()) && incoming().createdAt == request.time;
+      
+      // Allow updates while protecting immutable fields
+      allow update: if isValidId(chatId) && isValidChat(incoming()) && (
+        incoming().id == existing().id &&
+        incoming().sessionId == existing().sessionId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['requestStatus'])
+      );
+
+      // Deny destructive actions
+      allow delete: if false;
+    }
+  }
+}

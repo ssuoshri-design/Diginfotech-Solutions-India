@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "Chat": {
+      "title": "Chat Message",
+      "description": "A live support chat message between website visitor and operator.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID." },
+        "sessionId": { "type": "string", "description": "Guest session identifier." },
+        "sender": { "type": "string", "description": "Who sent this ('user' or 'agent')." },
+        "text": { "type": "string", "description": "Message content." },
+        "visitorName": { "type": "string", "description": "Captured name or Guest." },
+        "visitorEmail": { "type": "string", "description": "Captured email or placeholder." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of message creation." }
+      },
+      "required": ["id", "sessionId", "sender", "text", "visitorName", "visitorEmail", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Collection storing all support chat messages."
+    }
+  }
+}

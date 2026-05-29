@@ -5,11 +5,11 @@
   --font-display: "Poppins", sans-serif;
   --font-accent: "Montserrat", sans-serif;
   
-  --color-primary: #005BFF;
-  --color-navy-dark: #05081E;
-  --color-navy-bg: #0A0F2C;
+  --color-primary: #0088FF;
+  --color-navy-dark: #0B0F17;
+  --color-navy-bg: #111622;
   --color-cyan-accent: #00D1FF;
-  --color-dark-gray: #1A1A1A;
+  --color-dark-gray: #1E293B;
 }
 
 /* Custom premium scrollbar and futuristic text selections */
@@ -29,56 +29,56 @@
   }
   
   ::-webkit-scrollbar-track {
-    background: #05081E;
+    background: #0B0F17;
   }
   
   ::-webkit-scrollbar-thumb {
-    background: #1e295d;
+    background: #1E293B;
     border-radius: 4px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: #005BFF;
+    background: #5F35FF;
   }
 }
 
-/* Animated gradient background and ambient mesh effects */
+/* Premium ambient mesh glow animations */
 @keyframes pulseGlow {
   0%, 100% {
     transform: scale(1) translate(0px, 0px);
-    opacity: 0.2;
+    opacity: 0.15;
   }
   50% {
-    transform: scale(1.15) translate(30px, -20px);
-    opacity: 0.35;
+    transform: scale(1.1) translate(20px, -10px);
+    opacity: 0.25;
   }
 }
 
 @keyframes pulseGlowCyan {
-  0%, 100% {
-    transform: scale(1.1) translate(0px, 0px);
-    opacity: 0.15;
+  0%, 105% {
+    transform: scale(1.05) translate(0px, 0px);
+    opacity: 0.1;
   }
   50% {
-    transform: scale(0.9) translate(-40px, 40px);
-    opacity: 0.3;
+    transform: scale(0.95) translate(-20px, 20px);
+    opacity: 0.2;
   }
 }
 
 .animate-pulse-glow-blue {
-  animation: pulseGlow 15s infinite ease-in-out;
+  animation: pulseGlow 12s infinite ease-in-out;
 }
 
 .animate-pulse-glow-cyan {
-  animation: pulseGlowCyan 18s infinite ease-in-out;
+  animation: pulseGlowCyan 15s infinite ease-in-out;
 }
 
-/* Futuristic glassmorphism */
+/* Elegant glassmorphism */
 .glass-panel {
-  background: rgba(10, 15, 44, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(17, 22, 34, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-panel-hover {
@@ -86,21 +86,22 @@
 }
 
 .glass-panel-hover:hover {
-  background: rgba(10, 15, 44, 0.75);
-  border-color: rgba(0, 209, 255, 0.3);
-  box-shadow: 0 10px 30px -10px rgba(0, 83, 255, 0.2), 
-              0 0 1px 1px rgba(0, 209, 255, 0.1) inset;
+  background: rgba(17, 22, 34, 0.85);
+  border-color: rgba(95, 53, 255, 0.3);
+  box-shadow: 0 15px 35px -10px rgba(95, 53, 255, 0.15), 
+              0 0 1px 1px rgba(95, 53, 255, 0.05) inset;
 }
 
-/* Glowing text and utilities */
+/* Soft elegant glow shadows */
 .glow-text-cyan {
-  text-shadow: 0 0 20px rgba(0, 209, 255, 0.5);
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
 }
 
 .glow-shadow-blue {
-  box-shadow: 0 0 40px rgba(0, 91, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(95, 53, 255, 0.15);
 }
 
 .glow-shadow-cyan {
-  box-shadow: 0 0 40px rgba(0, 209, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(59, 130, 246, 0.15);
 }
+
