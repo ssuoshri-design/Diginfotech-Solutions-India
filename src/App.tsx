@@ -61,8 +61,9 @@ import {
   Tag
 } from "lucide-react";
 
-// Dynamic reference to the generated premium visual mockup
-const portfolioMockup = "/src/assets/images/cyber_dashboard_3d_1780061014344.png";
+// Dynamic reference to the generated premium visual mockup and logo
+import portfolioMockup from "./assets/images/cyber_dashboard_3d_1780061014344.png";
+import diginfotechLogo from "./assets/images/diginfotech_logo_1780128203628.png";
 
 // Modular administrative components
 import { AdminVisitorsTab } from "./components/AdminVisitorsTab";
@@ -75,7 +76,7 @@ import { AdminControlsTab } from "./components/AdminControlsTab";
 // Highly detailed custom SVG Logo component matching the newly uploaded brand identity
 const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }) => (
   <img
-    src="/src/assets/images/diginfotech_logo_1780128203628.png"
+    src={diginfotechLogo}
     alt="Diginfotech Logo"
     className={`${className} object-cover rounded-full border border-cyan-400/35 shadow-[0_0_15px_rgba(6,182,212,0.2)]`}
     referrerPolicy="no-referrer"
