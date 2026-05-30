@@ -283,7 +283,7 @@ export default function App() {
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [adminError, setAdminError] = useState("");
-  const [adminTab, setAdminTab] = useState<"visitors" | "leads" | "livechat" | "controls">("visitors");
+  const [adminTab, setAdminTab] = useState<"visitors" | "leads" | "livechat" | "sales" | "controls">("visitors");
   const [adminReplyInput, setAdminReplyInput] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isRequestPopupDismissed, setIsRequestPopupDismissed] = useState(false);
@@ -603,6 +603,27 @@ export default function App() {
     status: "New" | "Reviewed" | "Contacted" | "Closed";
   }>>([]);
 
+  // Log of all sales/customer packages purchased
+  const [salesLog, setSalesLog] = useState<Array<{
+    id: string;
+    customerName: string;
+    customerEmail: string;
+    planId: string;
+    planName: string;
+    amount: number;
+    currency: string;
+    status: "Completed" | "Pending" | "Declined";
+    timestamp: string;
+    isDemo?: boolean;
+  }>>([]);
+
+  const [isDeclineSimulated, setIsDeclineSimulated] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [salesSearch, setSalesSearch] = useState("");
+  const [salesFilter, setSalesFilter] = useState<"All" | "Completed" | "Declined">("All");
+  const [hoveredPricingPlan, setHoveredPricingPlan] = useState<"starter" | "growth" | "enterprise" | null>(null);
+
   // Custom Admin System Banner / Alert messages sent to visitors
   const [adminBroadcast, setAdminBroadcast] = useState<string>(() => {
     return localStorage.getItem("diginfotech_broadcast") || "";
@@ -671,6 +692,24 @@ export default function App() {
   const handleUpdateBroadcast = (text: string) => {
     setAdminBroadcast(text);
     localStorage.setItem("diginfotech_broadcast", text);
+  };
+
+  const handleExportSales = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(salesLog, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `diginfotech_sales_ledger_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleClearSales = () => {
+    const confirmAction = confirm("Are you sure you want to purge all sales ledger history? This cannot be undone.");
+    if (confirmAction) {
+      localStorage.setItem("diginfotech_saved_sales", JSON.stringify([]));
+      setSalesLog([]);
+    }
   };
 
   const handleClearInquiries = () => {
@@ -806,6 +845,45 @@ export default function App() {
       ];
       localStorage.setItem("diginfotech_saved_leads", JSON.stringify(defaultLeads));
       setLeadsLog(defaultLeads);
+    }
+
+    // 1.2 Initialise sales database (or fallback placeholder sales)
+    const savedSales = localStorage.getItem("diginfotech_saved_sales");
+    if (savedSales) {
+      try {
+        setSalesLog(JSON.parse(savedSales));
+      } catch (e) {
+        setSalesLog([]);
+      }
+    } else {
+      const defaultSales = [
+        {
+          id: "TXN-10042",
+          customerName: "Vikram Singhania",
+          customerEmail: "vikram@singhania-group.in",
+          planId: "growth",
+          planName: "Growth AI Pack (SEO & Assistant)",
+          amount: 699,
+          currency: "USD",
+          status: "Completed" as const,
+          timestamp: "2026-05-29 11:15",
+          isDemo: true
+        },
+        {
+          id: "TXN-10041",
+          customerName: "Claire Dupont",
+          customerEmail: "claire.d@luxebrand.fr",
+          planId: "starter",
+          planName: "Starter Package (Branding & Web)",
+          amount: 249,
+          currency: "GBP",
+          status: "Completed" as const,
+          timestamp: "2026-05-28 17:40",
+          isDemo: true
+        }
+      ];
+      localStorage.setItem("diginfotech_saved_sales", JSON.stringify(defaultSales));
+      setSalesLog(defaultSales);
     }
 
     // 2. Load or Seed Visitors
@@ -2226,44 +2304,52 @@ export default function App() {
       </section>
 
       {/* 4.5. PRICING & PLANS SECTION (Interactive Checkout integrated with Stripe / Sandbox Gateway) */}
-      <section id="pricing" className="py-24 border-t border-white/[0.05] relative bg-[#060913] overflow-hidden">
+      <section id="pricing" className="py-24 border-t border-white/[0.05] relative bg-gradient-to-b from-[#060913] via-[#090E1F] to-[#060913] overflow-hidden">
         {/* Soft neon ambient background mesh */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="absolute top-0 right-10 w-[300px] h-[300px] bg-cyan-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[140px] pointer-events-none"></div>
+        <div className="absolute top-0 right-10 w-[400px] h-[400px] bg-cyan-accent/5 rounded-full blur-[120px] pointer-events-none"></div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
           {/* Section Heading with tagline */}
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <span className="text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/25 animate-pulse">
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4 px-4">
+            <span className="inline-block text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/25 animate-pulse">
               FLEXIBLE INVESTMENT PACKAGES
             </span>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white text-center">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white text-center text-balance">
               Launch Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Scale Iteration</span>
             </h2>
-            <p className="text-white/60 text-sm md:text-base font-light text-center">
-              Transparent, flat-rate pricing designed for modern web applications, AI automations, and digital brand transformations. Fully integrated with secure instant payments.
-            </p>
           </div>
 
           {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-4">
             
             {/* Package 1: Starter */}
-            <div id="pricing-plan-starter" className="relative p-8 rounded-3xl glass-panel hover:border-cyan-accent/40 shadow-xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border border-white/[0.05] hover:-translate-y-1">
+            <div 
+              id="pricing-plan-starter" 
+              onMouseEnter={() => setHoveredPricingPlan("starter")}
+              onMouseLeave={() => setHoveredPricingPlan(null)}
+              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border ${
+                hoveredPricingPlan === "starter"
+                  ? "bg-[#12192E] border-cyan-400 scale-[1.04] shadow-[0_0_50px_rgba(6,182,212,0.35)] z-20"
+                  : hoveredPricingPlan !== null
+                    ? "bg-[#0F1424]/40 border-white/5 opacity-35 scale-[0.96] blur-[0.5px]"
+                    : "bg-[#0F1424] border-white/10 hover:border-cyan-accent/40 shadow-2xl hover:-translate-y-1 hover:bg-[#12192E] hover:shadow-[0_0_35px_rgba(6,182,212,0.15)]"
+              }`}
+            >
               <div className="space-y-6">
                 <div className="space-y-2">
                   <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-white/5 px-2.5 py-1 rounded-full font-bold uppercase block w-max">
                     STARTER BUNDLE
                   </span>
                   <h3 className="text-xl font-bold text-white font-display text-left">Starter Package</h3>
-                  <p className="text-white/50 text-xs font-light text-left">
+                  <p className="text-white/60 text-xs font-light text-left leading-relaxed">
                     Premium standard Website showcase + tailored brand visual identity suite.
                   </p>
                 </div>
 
                 {/* Pricing element */}
-                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                <div className="flex items-baseline space-x-2 border-b border-white/10 pb-6 text-left">
                   <span className="text-4xl sm:text-5xl font-extrabold font-display text-white">{getPlanPriceString("starter")}</span>
                   <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
                 </div>
@@ -2272,23 +2358,23 @@ export default function App() {
                 <div className="space-y-3.5 text-left text-xs">
                   <h4 className="text-[10px] uppercase tracking-wider text-cyan-accent font-bold font-accent">What's included:</h4>
                   <ul className="space-y-3">
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Custom React / SPA Website build</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Fully responsive Mobile & Desktop layouts</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Standard SEO Auditing & Speed Optimization</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Logo pack & full brand vectors export</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>1 Month high-priority technical support</span>
                     </li>
@@ -2300,13 +2386,13 @@ export default function App() {
               <button 
                 onClick={() => handleInitiateCheckout("starter")}
                 disabled={checkoutLoading !== null}
-                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-[#111625]/80 hover:bg-white/[0.05] border border-white/10 hover:border-cyan-accent/35 transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                className="w-full mt-8 py-4 rounded-xl font-bold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-accent/40 text-white transition-all text-xs uppercase tracking-widest text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
               >
                 {checkoutLoading === "starter" ? (
                   <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                 ) : (
                   <>
-                    <span>Generate Invoice Securely</span>
+                    <span>Select Package</span>
                     <ArrowRight className="w-3.5 h-3.5 text-cyan-accent" />
                   </>
                 )}
@@ -2314,28 +2400,39 @@ export default function App() {
             </div>
 
             {/* Package 2: Growth (Featured Premium) */}
-            <div id="pricing-plan-growth" className="relative p-8 rounded-3xl glass-panel shadow-2xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border-2 border-primary hover:-translate-y-1.5 shadow-primary/10">
+            <div 
+              id="pricing-plan-growth" 
+              onMouseEnter={() => setHoveredPricingPlan("growth")}
+              onMouseLeave={() => setHoveredPricingPlan(null)}
+              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border-2 ${
+                hoveredPricingPlan === "growth"
+                  ? "bg-[#18213D] border-primary scale-[1.04] shadow-[0_0_60px_rgba(99,102,241,0.5)] z-20"
+                  : hoveredPricingPlan !== null
+                    ? "bg-[#141B33]/40 border-primary/20 opacity-35 scale-[0.96] blur-[0.5px]"
+                    : "bg-[#141B33] border-primary shadow-2xl hover:-translate-y-1.5 hover:bg-[#18213D] hover:shadow-[0_0_45px_rgba(99,102,241,0.25)] shadow-primary/10"
+              }`}
+            >
               {/* Highlight sash badge */}
-              <div className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold py-1 px-4 tracking-widest uppercase rounded-bl-xl font-mono z-10">
+              <div className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold py-1 px-4 tracking-widest uppercase rounded-bl-xl font-mono z-10 animate-pulse">
                 POPULAR CHOICE
               </div>
               
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-primary/15 px-2.5 py-1 rounded-full font-bold uppercase block w-max border border-primary/25">
+                  <span className="text-[10px] font-mono tracking-widest text-cyan-accent bg-primary/20 px-2.5 py-1 rounded-full font-bold uppercase block w-max border border-primary/25 animate-pulse">
                     AI SCALE UP BUNDLE
                   </span>
                   <h3 className="text-xl font-bold text-white font-display text-left flex items-center space-x-2">
                     <span>Growth AI Pack</span>
-                    <Sparkles className="w-4 h-4 text-cyan-accent" />
+                    <Sparkles className="w-4 h-4 text-cyan-accent animate-pulse" />
                   </h3>
-                  <p className="text-white/50 text-xs font-light text-left">
+                  <p className="text-white/60 text-xs font-light text-left leading-relaxed">
                     For ambitious companies seeking dynamic leads dashboards & smart assistant triggers.
                   </p>
                 </div>
 
                 {/* Pricing element */}
-                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                <div className="flex items-baseline space-x-2 border-b border-white/10 pb-6 text-left">
                   <span className="text-4xl sm:text-5xl font-extrabold font-display text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">{getPlanPriceString("growth")}</span>
                   <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
                 </div>
@@ -2356,11 +2453,11 @@ export default function App() {
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       <span>Google Map visual components integration</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       <span>Automated Sitemap, RSS, and indexing setup</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                       <span>3 Months high-priority support SLA</span>
                     </li>
@@ -2372,13 +2469,13 @@ export default function App() {
               <button 
                 onClick={() => handleInitiateCheckout("growth")}
                 disabled={checkoutLoading !== null}
-                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-primary hover:bg-[#431BDB] transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50"
+                className="w-full mt-8 py-4 rounded-xl font-bold bg-gradient-to-r from-primary to-cyan-accent hover:from-[#431BDB] hover:to-cyan-400 text-white transition-all text-xs uppercase tracking-widest text-center flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 {checkoutLoading === "growth" ? (
                   <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                 ) : (
                   <>
-                    <span>Activate Growth Package</span>
+                    <span>Select Package</span>
                     <Zap className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
                   </>
                 )}
@@ -2386,20 +2483,31 @@ export default function App() {
             </div>
 
             {/* Package 3: Enterprise */}
-            <div id="pricing-plan-enterprise" className="relative p-8 rounded-3xl glass-panel hover:border-cyan-accent/40 shadow-xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border border-white/[0.05] hover:-translate-y-1">
+            <div 
+              id="pricing-plan-enterprise" 
+              onMouseEnter={() => setHoveredPricingPlan("enterprise")}
+              onMouseLeave={() => setHoveredPricingPlan(null)}
+              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border ${
+                hoveredPricingPlan === "enterprise"
+                  ? "bg-[#12192E] border-cyan-400 scale-[1.04] shadow-[0_0_50px_rgba(6,182,212,0.35)] z-20"
+                  : hoveredPricingPlan !== null
+                    ? "bg-[#0F1424]/40 border-white/5 opacity-35 scale-[0.96] blur-[0.5px]"
+                    : "bg-[#0F1424] border-white/10 hover:border-cyan-accent/40 shadow-2xl hover:-translate-y-1 hover:bg-[#12192E] hover:shadow-[0_0_35px_rgba(6,182,212,0.15)]"
+              }`}
+            >
               <div className="space-y-6">
                 <div className="space-y-2">
                   <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-white/5 px-2.5 py-1 rounded-full font-bold uppercase block w-max">
                     BESPOKE ENTERPRISE
                   </span>
                   <h3 className="text-xl font-bold text-white font-display text-left">Enterprise Master</h3>
-                  <p className="text-white/50 text-xs font-light text-left">
+                  <p className="text-white/60 text-xs font-light text-left leading-relaxed">
                     Tailored multi-agent systems, WhatsApp integrations, custom CRM & complex 3D modules.
                   </p>
                 </div>
 
                 {/* Pricing element */}
-                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                <div className="flex items-baseline space-x-2 border-b border-white/10 pb-6 text-left">
                   <span className="text-4xl sm:text-5xl font-extrabold font-display text-white">{getPlanPriceString("enterprise")}</span>
                   <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
                 </div>
@@ -2408,23 +2516,23 @@ export default function App() {
                 <div className="space-y-3.5 text-left text-xs">
                   <h4 className="text-[10px] uppercase tracking-wider text-cyan-accent font-bold font-accent">Ultimate enterprise scope:</h4>
                   <ul className="space-y-3">
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Custom CRM software & admin controls terminal</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>Intelligent WhatsApp API transactional dispatch</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>3D WebGL / Interactive canvas dashboard charts</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>API Gateway, security rules & custom Firestore design</span>
                     </li>
-                    <li className="flex items-start space-x-2.5 text-white/70">
+                    <li className="flex items-start space-x-2.5 text-white/80">
                       <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
                       <span>1 Year dedicated direct-slack tech support</span>
                     </li>
@@ -2436,19 +2544,18 @@ export default function App() {
               <button 
                 onClick={() => handleInitiateCheckout("enterprise")}
                 disabled={checkoutLoading !== null}
-                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-[#111625]/80 hover:bg-white/[0.05] border border-white/10 hover:border-cyan-accent/35 transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                className="w-full mt-8 py-4 rounded-xl font-bold bg-white/5 hover:bg-white/10 border border-white/10 hover:border-cyan-accent/40 text-white transition-all text-xs uppercase tracking-widest text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
               >
                 {checkoutLoading === "enterprise" ? (
                   <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
                 ) : (
                   <>
-                    <span>Book Enterprise Integration</span>
+                    <span>Select Package</span>
                     <ShieldCheck className="w-3.5 h-3.5 text-cyan-accent" />
                   </>
                 )}
               </button>
             </div>
-
           </div>
 
           {/* Secure details tag */}
@@ -3688,6 +3795,12 @@ export default function App() {
                 Support Live Chat ({activeSessionsCount})
               </button>
               <button
+                onClick={() => setAdminTab("sales")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "sales" ? "text-amber-400 border-b-2 border-amber-400 bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Sales & Customers ({salesLog.length})
+              </button>
+              <button
                 onClick={() => setAdminTab("controls")}
                 className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "controls" ? "text-red-400 border-b-2 border-red-400 bg-white/[0.03]" : "text-white/40"}`}
               >
@@ -4157,6 +4270,197 @@ export default function App() {
                 );
               })()}
 
+              {/* TAB 4: SALES & CUSTOMERS LEDGER */}
+              {adminTab === "sales" && (
+                <div className="space-y-6 animate-fade-in text-left">
+                  {/* METRIC BOXES SUMMARY CONTAINER */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="p-5 rounded-2xl bg-[#0B0F17] border border-white/10 flex flex-col justify-between relative overflow-hidden">
+                      <div className="absolute right-4 top-4 text-white/5 opacity-10">
+                        <Database className="w-12 h-12 text-amber-400" />
+                      </div>
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Gross Recurrent Sales</span>
+                      <span className="text-2xl font-black text-amber-400 mt-2">
+                        ${salesLog.filter(s => s.status === "Completed").reduce((acc, s) => acc + s.amount, 0).toLocaleString()}
+                      </span>
+                      <span className="text-[9px] text-white/40 mt-1">Live Cleared Transactions Ledger</span>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[#0B0F17] border border-white/10 flex flex-col justify-between relative overflow-hidden">
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Paid Customers</span>
+                      <span className="text-2xl font-black text-green-400 mt-2">
+                        {new Set(salesLog.filter(s => s.status === "Completed").map(s => s.customerEmail)).size} Users
+                      </span>
+                      <span className="text-[9px] text-white/40 mt-1">Distinct Package Owners</span>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[#0B0F17] border border-white/10 flex flex-col justify-between relative overflow-hidden">
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Secure Checkout Success</span>
+                      <span className="text-2xl font-black text-cyan-accent mt-2">
+                        {salesLog.filter(s => s.status === "Completed").length} Cleared
+                      </span>
+                      <span className="text-[9px] text-white/40 mt-1">Stripe / Razorpay Settled</span>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-[#0B0F17] border border-white/10 flex flex-col justify-between relative overflow-hidden">
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Declined Attempts</span>
+                      <span className="text-2xl font-black text-red-400 mt-2">
+                        {salesLog.filter(s => s.status === "Declined").length} Blocked
+                      </span>
+                      <span className="text-[9px] text-white/40 mt-1">Insufficient Funds / Lost Carts</span>
+                    </div>
+                  </div>
+
+                  {/* HEADER LEDGER ACTIONS */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0E1624] p-4 rounded-xl border border-white/[0.04]">
+                    <div className="space-y-0.5">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider font-mono">Bespoke Sales & Package Client Ledger</h3>
+                      <p className="text-[10px] text-white/50 font-sans">Audit and inspect real-time package purchases, customer credentials, and transaction authorization statuses.</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
+                      {/* Search bar inside header */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-white/30 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={salesSearch}
+                          onChange={(e) => setSalesSearch(e.target.value)}
+                          placeholder="Search customer, email, plan..."
+                          className="bg-[#070b13] border border-white/10 focus:border-[#818CF8]/50 rounded-xl pl-9 pr-4 py-1.5 text-xs focus:outline-none transition-all text-white placeholder:text-white/30 min-w-[210px]"
+                        />
+                      </div>
+
+                      {/* Status select filter */}
+                      <select
+                        value={salesFilter}
+                        onChange={(e) => setSalesFilter(e.target.value as any)}
+                        className="bg-[#070b13] text-xs rounded-xl px-3 py-1.5 border border-white/10 text-white font-bold outline-none cursor-pointer focus:border-primary"
+                      >
+                        <option value="All">All Invoices</option>
+                        <option value="Completed">Completed Only</option>
+                        <option value="Declined">Declined Only</option>
+                      </select>
+
+                      <button
+                        onClick={handleExportSales}
+                        className="bg-primary/10 border border-primary/25 hover:bg-primary/20 text-[#818CF8] hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                        title="Download sales ledger as JSON file"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Export Ledger</span>
+                      </button>
+
+                      <button
+                        onClick={handleClearSales}
+                        className="bg-red-500/10 border border-red-500/25 hover:bg-red-500/25 text-red-150 text-red-400 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                        title="Reset sales records"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Purge ledger</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* SALES LIST CONTAINER */}
+                  {(() => {
+                    const filteredSales = salesLog.filter(sale => {
+                      // Apply search keyword filter
+                      const q = salesSearch.toLowerCase();
+                      const matchesSearch = 
+                        sale.customerName.toLowerCase().includes(q) ||
+                        sale.customerEmail.toLowerCase().includes(q) ||
+                        sale.planName.toLowerCase().includes(q) ||
+                        sale.id.toLowerCase().includes(q);
+
+                      // Apply status filter
+                      const matchesStatus = 
+                        salesFilter === "All" ||
+                        (salesFilter === "Completed" && sale.status === "Completed") ||
+                        (salesFilter === "Declined" && sale.status === "Declined");
+
+                      return matchesSearch && matchesStatus;
+                    });
+
+                    if (filteredSales.length === 0) {
+                      return (
+                        <div className="p-12 text-center rounded-3xl border border-white/10 bg-[#070b13]/60 space-y-3.5">
+                          <AlertCircle className="w-10 h-10 text-white/10 mx-auto animate-pulse" />
+                          <p className="text-sm text-white/50 font-medium">No sales or purchase records fit the current filtering parameters rules.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="overflow-x-auto rounded-xl border border-white/[0.06] bg-[#0B0F17]">
+                        <table className="w-full text-xs text-left text-white/70">
+                          <thead className="bg-[#111622] text-[10px] uppercase font-mono tracking-wider text-white/50 border-b border-white/[0.06]">
+                            <tr>
+                              <th className="px-4 py-3">Transaction Reference</th>
+                              <th className="px-4 py-3">Customer Credentials</th>
+                              <th className="px-4 py-3">Acquired Package Name</th>
+                              <th className="px-4 py-3">Settle Price</th>
+                              <th className="px-4 py-3">Settlement Date</th>
+                              <th className="px-4 py-3">Cleared Gateway Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/[0.04]">
+                            {filteredSales.map((sale) => (
+                              <tr 
+                                key={sale.id} 
+                                className={`hover:bg-white/[0.01] transition-all ${sale.status === "Declined" ? "bg-red-500/[0.01]" : ""}`}
+                              >
+                                <td className="px-4 py-3.5 font-mono text-[11px] text-[#818CF8] font-bold">
+                                  {sale.id}
+                                  {sale.isDemo && (
+                                    <span className="text-[8px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded ml-1.5 font-sans font-normal">MOCK SOURCE</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3.5">
+                                  <div className="font-semibold text-white">{sale.customerName}</div>
+                                  <div className="text-[10px] text-white/40 block font-mono">{sale.customerEmail}</div>
+                                </td>
+                                <td className="px-4 py-3.5">
+                                  <div className="text-white font-medium">{sale.planName}</div>
+                                  <span className="text-[9px] text-[#00D1FF] bg-[#00D1FF]/10 border border-[#00D1FF]/20 px-1.5 py-px rounded uppercase font-black tracking-wide shrink-0">
+                                    {sale.planId} Active
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3.5 font-mono text-[11px] text-white">
+                                  {sale.currency === "INR" ? "₹" : sale.currency === "GBP" ? "£" : "$"}
+                                  {sale.amount.toLocaleString()} {sale.currency}
+                                </td>
+                                <td className="px-4 py-3.5 text-white/60 font-mono text-[10px]">
+                                  {sale.timestamp}
+                                </td>
+                                <td className="px-4 py-3.5">
+                                  {sale.status === "Completed" ? (
+                                    <div className="inline-flex items-center space-x-1.5 bg-green-500/10 border border-green-500/20 rounded-full px-2.5 py-0.5 text-[10px] text-green-400 font-bold uppercase tracking-wide">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                      <span>COMPLETED</span>
+                                    </div>
+                                  ) : sale.status === "Declined" ? (
+                                    <div className="inline-flex items-center space-x-1.5 bg-red-500/10 border border-red-500/20 rounded-full px-2.5 py-0.5 text-[10px] text-red-150 text-red-400 font-bold uppercase tracking-wide">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                      <span>DECLINED</span>
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex items-center space-x-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-full px-2.5 py-0.5 text-[10px] text-yellow-400 font-bold uppercase tracking-wide">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+                                      <span>PENDING</span>
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* TAB 3: CONTROLS */}
               {adminTab === "controls" && (
                 <div className="space-y-6 animate-fade-in text-left max-w-2xl mx-auto py-4">
@@ -4376,17 +4680,88 @@ export default function App() {
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
-                // Trigger transition to success page using search parameter simulation
-                const url = new URL(window.location.href);
-                url.searchParams.set("payment_success", "true");
-                url.searchParams.set("plan", mockPaymentPlan.id);
-                window.location.href = url.toString();
+                setPaymentError(null);
+                setIsProcessingPayment(true);
+                
+                const form = e.currentTarget;
+                const nameInput = form.querySelector("#billing-name-input") as HTMLInputElement;
+                const emailInput = form.querySelector("#billing-email-input") as HTMLInputElement;
+                
+                const billingName = nameInput ? nameInput.value : (formInputs.name || "Enterprise Growth Core Client");
+                const billingEmail = emailInput ? emailInput.value : (formInputs.email || "client@growthpartner.co");
+                
+                setTimeout(() => {
+                  if (isDeclineSimulated) {
+                    setIsProcessingPayment(false);
+                    setPaymentError("Transaction Declined: [card_declined] Your credit card has insufficient funds. Please check your credentials or try another payment source.");
+                    
+                    // Log declined transaction inside salesLog
+                    const saleId = `TXN-${Math.floor(Math.random() * 90000 + 10000)}`;
+                    const newSale = {
+                      id: saleId,
+                      customerName: billingName,
+                      customerEmail: billingEmail,
+                      planId: mockPaymentPlan.id,
+                      planName: mockPaymentPlan.name,
+                      amount: mockPaymentPlan.price,
+                      currency: mockPaymentPlan.currency,
+                      status: "Declined" as const,
+                      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                      isDemo: false
+                    };
+                    
+                    setSalesLog(prev => {
+                      const updated = [newSale, ...prev];
+                      localStorage.setItem("diginfotech_saved_sales", JSON.stringify(updated));
+                      return updated;
+                    });
+                  } else {
+                    // Log completed transaction inside salesLog
+                    const saleId = `TXN-${Math.floor(Math.random() * 90000 + 10000)}`;
+                    const newSale = {
+                      id: saleId,
+                      customerName: billingName,
+                      customerEmail: billingEmail,
+                      planId: mockPaymentPlan.id,
+                      planName: mockPaymentPlan.name,
+                      amount: mockPaymentPlan.price,
+                      currency: mockPaymentPlan.currency,
+                      status: "Completed" as const,
+                      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                      isDemo: false
+                    };
+                    
+                    setSalesLog(prev => {
+                      const updated = [newSale, ...prev];
+                      localStorage.setItem("diginfotech_saved_sales", JSON.stringify(updated));
+                      return updated;
+                    });
+                    
+                    const planDetails = {
+                      id: mockPaymentPlan.id,
+                      name: mockPaymentPlan.name,
+                      price: mockPaymentPlan.currency === "INR" ? `₹${mockPaymentPlan.price.toLocaleString()}` : mockPaymentPlan.currency === "GBP" ? `£${mockPaymentPlan.price.toLocaleString()}` : `$${mockPaymentPlan.price.toLocaleString()}`
+                    };
+                    
+                    setPaymentSuccessPlan(planDetails);
+                    setShowSuccessModal(true);
+                    setShowMockCheckout(false);
+                    setMockPaymentPlan(null);
+                    setIsProcessingPayment(false);
+                  }
+                }, 1500);
               }}
               className="space-y-4 mt-5"
             >
+              {paymentError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-150 text-red-400 text-xs font-mono text-left animate-shake">
+                  {paymentError}
+                </div>
+              )}
+
               {mockPaymentPlan.currency === "INR" ? (
                 // Razorpay UPI UI flow template simulation
-                <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-4">
+                <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-4 md:p-5">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
                     <span className="text-[10px] font-mono font-bold text-cyan-accent uppercase">Razorpay UPI Checkout</span>
                     <span className="text-[8px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded uppercase font-bold">BHIM / UPI Active</span>
@@ -4396,16 +4771,17 @@ export default function App() {
                     <input 
                       type="text" 
                       required 
+                      disabled={isProcessingPayment}
                       placeholder="username@okaxis or mobile@paytm" 
                       defaultValue="growthpartner@upi"
-                      className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                      className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono disabled:opacity-50"
                     />
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[9px] text-white/40 block leading-relaxed font-sans">Or scan simulated secure QR below:</span>
+                    <span className="text-[9px] text-white/40 block leading-relaxed font-sans mt-2">Or scan simulated secure QR below:</span>
                     <div className="w-28 h-28 bg-white p-1.5 rounded-xl mx-auto flex items-center justify-center shadow-lg shadow-black/10">
                       <img 
-                        src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=diginfotech@upi&pn=Diginfotech%20Solutions&am=24999.00&cu=INR" 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=diginfotech@upi&pn=Diginfotech%20Solutions&am=${mockPaymentPlan.price}&cu=INR`} 
                         alt="Simulated secure UPI Scan QR"
                         width={110}
                         height={110}
@@ -4423,9 +4799,10 @@ export default function App() {
                       <input 
                         type="text" 
                         required 
+                        disabled={isProcessingPayment}
                         placeholder="4242 •••• •••• 4242" 
                         defaultValue="4242 4242 4242 4242"
-                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono disabled:opacity-50"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] bg-cyan-accent/10 border border-cyan-accent/20 px-1.5 py-0.5 rounded text-cyan-accent font-bold font-mono">SANDBOX TEST</span>
                     </div>
@@ -4437,9 +4814,10 @@ export default function App() {
                       <input 
                         type="text" 
                         required 
+                        disabled={isProcessingPayment}
                         placeholder="MM / YY" 
                         defaultValue="12 / 29"
-                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono disabled:opacity-50"
                       />
                     </div>
                     <div className="space-y-1.5 text-left">
@@ -4447,25 +4825,58 @@ export default function App() {
                       <input 
                         type="password" 
                         required 
+                        disabled={isProcessingPayment}
                         maxLength={3} 
                         placeholder="•••" 
                         defaultValue="123"
-                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono disabled:opacity-50"
                       />
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-1.5 text-left">
-                <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Cardholder Billing Name</label>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="e.g. John Doe" 
-                  defaultValue={formInputs.name || "Enterprise Growth Core Client"}
-                  className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-sans"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Cardholder Billing Name</label>
+                  <input 
+                    id="billing-name-input"
+                    type="text" 
+                    required 
+                    disabled={isProcessingPayment}
+                    placeholder="e.g. John Doe" 
+                    defaultValue={formInputs.name || "Enterprise Growth Core Client"}
+                    className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-sans disabled:opacity-50"
+                  />
+                </div>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Billing Email Address</label>
+                  <input 
+                    id="billing-email-input"
+                    type="email" 
+                    required 
+                    disabled={isProcessingPayment}
+                    placeholder="e.g. client@domain.com" 
+                    defaultValue={formInputs.email || "client@growthpartner.co"}
+                    className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-sans disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              {/* Simulation Configuration Toggle */}
+              <div className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/5 rounded-xl text-xs">
+                <div className="text-left">
+                  <span className="text-white/80 font-semibold block">Simulate Payment Decline</span>
+                  <span className="text-[10px] text-white/45 block">Test checkout failure state and declined orders logs</span>
+                </div>
+                <button
+                  type="button"
+                  disabled={isProcessingPayment}
+                  onClick={() => setIsDeclineSimulated(!isDeclineSimulated)}
+                  className={`w-10 h-6 rounded-full relative transition-all duration-200 outline-none cursor-pointer disabled:opacity-40 ${isDeclineSimulated ? 'bg-red-500/80' : 'bg-white/10'}`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-md transition-all duration-200 ${isDeclineSimulated ? 'left-5' : 'left-1'}`} />
+                </button>
               </div>
 
               <div className="p-3.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 font-sans rounded-xl text-xs space-y-1 text-left leading-relaxed">
@@ -4481,10 +4892,20 @@ export default function App() {
               {/* Action */}
               <button 
                 type="submit"
-                className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-primary to-cyan-accent hover:from-[#431BDB] hover:to-cyan-400 text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all shadow-lg active:scale-95 cursor-pointer font-sans"
+                disabled={isProcessingPayment}
+                className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-primary to-cyan-accent hover:from-[#431BDB] hover:to-cyan-400 text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-sans"
               >
-                <span>Authorize & Clear Secure Payment</span>
-                <Clock className="w-3.5 h-3.5" />
+                {isProcessingPayment ? (
+                  <div className="flex items-center space-x-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>Processing Secure Gateway...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>{isDeclineSimulated ? "Test Authorize (Decline Failure)" : "Authorize & Clear Secure Payment"}</span>
+                    <Clock className="w-3.5 h-3.5" />
+                  </>
+                )}
               </button>
             </form>
 
