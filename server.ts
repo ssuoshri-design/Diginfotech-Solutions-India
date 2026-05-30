@@ -35,24 +35,24 @@ interface PricingPlan {
 const PLANS: Record<string, PricingPlan> = {
   starter: {
     id: "starter",
-    name: "Starter Package (Branding & Web)",
+    name: "Launch Package",
     price: 29900, // $299.00
     currency: "usd",
-    description: "Premium Website Development + Brand Visual identity pack.",
+    description: "Build a strong online presence and start attracting customers with a professional conversion-focused website.",
   },
   growth: {
     id: "growth",
-    name: "Growth AI Pack (SEO & Assistant)",
-    price: 69900, // $699.00
+    name: "Growth Package",
+    price: 59900, // $599.00
     currency: "usd",
-    description: "High-Conversions Custom Lead system + Smart AI Agent Sync.",
+    description: "Generate more leads, improve customer acquisition, and streamline your marketing systems.",
   },
   enterprise: {
     id: "enterprise",
-    name: "Enterprise Master (3D & custom CRM)",
-    price: 149900, // $1499.00
+    name: "Scale & Automation Package",
+    price: 119900, // $1,199.00
     currency: "usd",
-    description: "Bespoke Enterprise-grade full dynamic AI automation system.",
+    description: "Automate your lead generation and customer management so your business works 24/7.",
   },
 };
 
@@ -91,36 +91,36 @@ async function startServer() {
       if (currencyStr === "inr") {
         if (planId === "starter") {
           calculatedPrice = 2499900; // ₹24,999 in paise
-          planDisplayName = "Starter Package (₹24,999)";
+          planDisplayName = "Launch Package (₹24,999)";
         } else if (planId === "growth") {
-          calculatedPrice = 7999900; // ₹79,999 in paise
-          planDisplayName = "Growth AI Pack (₹79,999)";
+          calculatedPrice = 4999900; // ₹49,999 in paise
+          planDisplayName = "Growth Package (₹49,999)";
         } else if (planId === "enterprise") {
-          calculatedPrice = 24999900; // ₹2,49,999 in paise
-          planDisplayName = "Enterprise Master (₹2,49,999)";
+          calculatedPrice = 9999900; // ₹99,999 in paise
+          planDisplayName = "Scale & Automation Package (₹99,999)";
         }
       } else if (currencyStr === "gbp") {
         if (planId === "starter") {
           calculatedPrice = 24900; // £249 in pence
-          planDisplayName = "Starter Package (£249)";
+          planDisplayName = "Launch Package (£249)";
         } else if (planId === "growth") {
-          calculatedPrice = 84900; // £849 in pence
-          planDisplayName = "Growth AI Pack (£849)";
+          calculatedPrice = 49900; // £499 in pence
+          planDisplayName = "Growth Package (£499)";
         } else if (planId === "enterprise") {
-          calculatedPrice = 249900; // £2,499 in pence
-          planDisplayName = "Enterprise Master (£2,499)";
+          calculatedPrice = 99900; // £999 in pence
+          planDisplayName = "Scale & Automation Package (£999)";
         }
       } else {
         // USD
         if (planId === "starter") {
           calculatedPrice = 29900; // $299
-          planDisplayName = "Starter Package ($299)";
+          planDisplayName = "Launch Package ($299)";
         } else if (planId === "growth") {
-          calculatedPrice = 69900; // $699
-          planDisplayName = "Growth AI Pack ($699)";
+          calculatedPrice = 59900; // $599
+          planDisplayName = "Growth Package ($599)";
         } else if (planId === "enterprise") {
-          calculatedPrice = 149900; // $1,499
-          planDisplayName = "Enterprise Master ($1,499)";
+          calculatedPrice = 119900; // $1,199
+          planDisplayName = "Scale & Automation Package ($1,199)";
         }
       }
 
