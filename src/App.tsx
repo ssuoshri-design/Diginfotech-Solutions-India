@@ -54,11 +54,23 @@ import {
   RefreshCw,
   Eye,
   Trash2,
-  Download
+  Download,
+  BookOpen,
+  Calendar,
+  FileText,
+  Tag
 } from "lucide-react";
 
 // Dynamic reference to the generated premium visual mockup
 const portfolioMockup = "/src/assets/images/cyber_dashboard_3d_1780061014344.png";
+
+// Modular administrative components
+import { AdminVisitorsTab } from "./components/AdminVisitorsTab";
+import { AdminLeadsTab } from "./components/AdminLeadsTab";
+import { AdminLiveChatTab } from "./components/AdminLiveChatTab";
+import { AdminSalesTab } from "./components/AdminSalesTab";
+import { AdminBlogTab } from "./components/AdminBlogTab";
+import { AdminControlsTab } from "./components/AdminControlsTab";
 
 // Highly detailed custom SVG Logo component matching the newly uploaded brand identity
 const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }) => (
@@ -68,6 +80,17 @@ const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }
     className={`${className} object-cover rounded-full border border-cyan-400/35 shadow-[0_0_15px_rgba(6,182,212,0.2)]`}
     referrerPolicy="no-referrer"
   />
+);
+
+const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    className={className} 
+    fill="currentColor" 
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.456 5.705 1.457h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
 );
 
 // Service Type definition
@@ -279,11 +302,20 @@ export default function App() {
   };
 
   // --- SECRET ADMIN & VISITOR CONTROL CORE SYSTEMS ---
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(() => {
+    return new URLSearchParams(window.location.search).has("admin-page");
+  });
+  const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState("");
   const [adminError, setAdminError] = useState("");
-  const [adminTab, setAdminTab] = useState<"visitors" | "leads" | "livechat" | "sales" | "controls">("visitors");
+  const [adminTab, setAdminTab] = useState<"visitors" | "leads" | "livechat" | "sales" | "controls" | "blog">(() => {
+    const page = new URLSearchParams(window.location.search).get("admin-page") || "visitors";
+    if (["visitors", "leads", "livechat", "sales", "controls", "blog"].includes(page)) {
+      return page as any;
+    }
+    return "visitors";
+  });
   const [adminReplyInput, setAdminReplyInput] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isRequestPopupDismissed, setIsRequestPopupDismissed] = useState(false);
@@ -622,7 +654,241 @@ export default function App() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [salesSearch, setSalesSearch] = useState("");
   const [salesFilter, setSalesFilter] = useState<"All" | "Completed" | "Declined">("All");
-  const [hoveredPricingPlan, setHoveredPricingPlan] = useState<"starter" | "growth" | "enterprise" | null>(null);
+
+  // --- BLOG CORE ENGINE & SEO TRAFFIC PORTAL ---
+  interface BlogPost {
+    id: string;
+    title: string;
+    slug: string;
+    category: "Tech" | "Business" | "Automation" | "Marketing" | "Design";
+    summary: string;
+    content: string; // Markdown supported
+    author: string;
+    readTime: string;
+    date: string;
+    imageUrl: string;
+    views: number;
+    tags: string[];
+  }
+
+  const INITIAL_BLOGS: BlogPost[] = [
+    {
+      id: "blog-1",
+      title: "The Future of Websites in 2026",
+      slug: "future-of-websites-2026",
+      category: "Tech",
+      summary: "See how modern websites use fast speed, simple design, and WhatsApp buttons to get and keep more customers.",
+      content: [
+        "## Why Modern Websites Must Be Fast and Simple",
+        "In 2026, people do not like waiting for slow pages to load. If your website takes more than 2 seconds to open, visitors will leave. A modern website needs to be quick, tidy, and straight to the point.",
+        "### The Power of Direct Chat Buttons\nInstead of making visitors fill out long forms or search for contact numbers, adding a direct **WhatsApp Chat Button** makes it incredibly easy for clients to ask you questions right away.",
+        "#### 3 Things Your Website Needs Today:\n1. **Fast Speed**: The page should load instantly on both mobile phones and laptops.\n2. **Clear Information**: Tell visitors what you do in simple words as soon as they open the page.\n3. **Easy Contact**: Put a direct link or button, like WhatsApp or a simple call button, where they can reach you in one click.",
+        "### Why Google Loves Fast Websites\nGoogle wants its users to have a great experience. That means Google ranks websites higher if they load fast and work beautifully on mobile phones. When you have an optimized website, more people will find you organically."
+      ].join("\n\n"),
+      author: "Pranav Sharma",
+      readTime: "3 min read",
+      date: "2026-05-28",
+      imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      views: 142,
+      tags: ["React", "Website", "SEO", "Speed"]
+    },
+    {
+      id: "blog-2",
+      title: "Why Custom Pages Get You More Customers Than Templates",
+      slug: "why-custom-pages-are-better-than-templates",
+      category: "Business",
+      summary: "An easy-to-understand comparison of website speed, look and feel, and Google search ranking differences.",
+      content: [
+        "## Standard Templates vs. Custom Websites",
+        "Many businesses start with a cheap template from a website builder. While templates are easy to set up at first, they often come with hidden problems that can hurt your business in the long run.",
+        "### The Problems With Website Templates\n- **They Are Slow**: Templates contain lots of extra code that you do not need, making the website slow.\n- **They Look Normal**: Many of your competitors might be using the exact same design, so your business does not stand out.\n- **Hard to Change**: As your business grows, adding new elements or custom forms to a template can be very difficult.",
+        "### Why Custom Designs Win\nA custom website is built exactly for your business and your target audience. There is no wasted code, so the pages are extremely fast.",
+        "#### Helping You Stand Out of the Crowd\nWhen a client visits a custom website, they can immediately feel that your business is professional and trustworthy. This trust makes them much more likely to choose you over competitors."
+      ].join("\n\n"),
+      author: "Anish Gupta",
+      readTime: "3 min read",
+      date: "2026-05-24",
+      imageUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80",
+      views: 98,
+      tags: ["Conversion", "React", "SEO", "Design"]
+    },
+    {
+      id: "blog-3",
+      title: "Using Simple Automation to Save Time in Your Business",
+      slug: "using-simple-automation-to-save-time",
+      category: "Automation",
+      summary: "How businesses save hours of manual work by linking secure contact forms directly with WhatsApp notifications and simple client managers.",
+      content: [
+        "## Save Time by Automating Simple Steps",
+        "Running a business takes a lot of effort, and answering customer questions manually can eat up hours of your day. This is where simple automated steps can help you.",
+        "### What is Simple Automation?\nAutomation means setting up your website to do repetitive tasks for you. Instead of copy-pasting customer details into draft messages or files, the website does it in the background.",
+        "#### 3 Simple Ways to Automate Your Website:\n1. **Instant Chat Notifications**: When a customer sends a message on your contact form, you can receive an instant alert on WhatsApp or email so you can reply to them immediately.\n2. **Calculators & Cost Estimators**: If you sell services with fixed packages, you can add a simple pricing slider. Customers can calculate their cost by themselves, saving you hours of phone calls!\n3. **Automatic Confirmation Emails**: Sending a polite, automatic \"Thank you, we received your message and will reply in 2 hours\" email builds instant trust.",
+        "### Focus on What Matters\nBy letting your website handle the initial greetings and messages, you get more free time to work on growing your business and serving your clients."
+      ].join("\n\n"),
+      author: "Elena Petrova",
+      readTime: "4 min read",
+      date: "2026-05-20",
+      imageUrl: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80",
+      views: 184,
+      tags: ["Automation", "WhatsApp", "Business", "Efficiency"]
+    }
+  ];
+
+  const [blogs, setBlogs] = useState<BlogPost[]>(() => {
+    try {
+      const saved = localStorage.getItem("diginfotech_blogs");
+      if (saved) {
+        const parsed = JSON.parse(saved) as BlogPost[];
+        const hasOldTechJargon = parsed.some(b => b.content && (b.content.includes("multilingual dynamic translation") || b.content.includes("landscape of corporate web design") || b.content.includes("The Evolution of Corporate Web Engineering")));
+        const hasAICategory = parsed.some(b => (b.category as string) === "AI");
+        const hasBrokenImage = parsed.some(b => b.imageUrl && b.imageUrl.includes("1677442136019-21780efad99a"));
+        if (hasOldTechJargon || hasAICategory || hasBrokenImage) {
+          localStorage.removeItem("diginfotech_blogs");
+          return INITIAL_BLOGS;
+        }
+        return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading blogs from localStorage", e);
+    }
+    return INITIAL_BLOGS;
+  });
+
+  const [selectedBlogCategory, setSelectedBlogCategory] = useState<string>("All");
+  const [blogSearchQuery, setBlogSearchQuery] = useState<string>("");
+  const [activeReadingBlog, setActiveReadingBlog] = useState<BlogPost | null>(null);
+  const [blogImageErrors, setBlogImageErrors] = useState<Record<string, boolean>>({});
+
+  const [allBlogsParamActive, setAllBlogsParamActive] = useState(() => {
+    return new URLSearchParams(window.location.search).get("view") === "all-blogs";
+  });
+
+  useEffect(() => {
+    const handleUrlCheck = () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isBlogView = searchParams.get("view") === "all-blogs";
+      const isAdminView = searchParams.has("admin-page");
+      const activeAdminTab = searchParams.get("admin-page") || "visitors";
+      
+      setAllBlogsParamActive(isBlogView);
+      setIsAdminPanelOpen(isAdminView);
+      if (["visitors", "leads", "livechat", "sales", "controls", "blog"].includes(activeAdminTab)) {
+        setAdminTab(activeAdminTab as any);
+      }
+    };
+    window.addEventListener("popstate", handleUrlCheck);
+    const interval = setInterval(handleUrlCheck, 500);
+    return () => {
+      window.removeEventListener("popstate", handleUrlCheck);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // States for blog admin management
+  const [newBlogTitle, setNewBlogTitle] = useState("");
+  const [newBlogCategory, setNewBlogCategory] = useState<BlogPost["category"]>("Tech");
+  const [newBlogSummary, setNewBlogSummary] = useState("");
+  const [newBlogContent, setNewBlogContent] = useState("");
+  const [newBlogAuthor, setNewBlogAuthor] = useState("");
+  const [newBlogImage, setNewBlogImage] = useState("https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80");
+  const [newBlogTags, setNewBlogTags] = useState("");
+  const [blogMsg, setBlogMsg] = useState("");
+
+  // Deep Link URL Sync for Google Bot Crawling and Direct Links
+  useEffect(() => {
+    const checkDeepLink = () => {
+      const params = new URLSearchParams(window.location.search);
+      const blogSlug = params.get("blog");
+      if (blogSlug) {
+        const match = blogs.find(b => b.slug === blogSlug);
+        if (match) {
+          if (!activeReadingBlog || activeReadingBlog.slug !== blogSlug) {
+            setActiveReadingBlog(match);
+          }
+        }
+      } else if (activeReadingBlog) {
+        setActiveReadingBlog(null);
+      }
+    };
+    checkDeepLink();
+    window.addEventListener("popstate", checkDeepLink);
+    return () => window.removeEventListener("popstate", checkDeepLink);
+  }, [blogs]);
+
+  const handleCreateBlog = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBlogTitle || !newBlogContent || !newBlogAuthor) {
+      setBlogMsg("⚠️ Please enter Title, Author name, and Content.");
+      return;
+    }
+    const tagsArr = newBlogTags
+      ? newBlogTags.split(",").map(t => t.trim()).filter(Boolean)
+      : [newBlogCategory];
+    
+    const newPost: BlogPost = {
+      id: `blog-${Date.now()}`,
+      title: newBlogTitle,
+      slug: newBlogTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+      category: newBlogCategory,
+      summary: newBlogSummary || newBlogContent.substring(0, 160) + "...",
+      content: newBlogContent,
+      author: newBlogAuthor,
+      readTime: `${Math.max(1, Math.ceil(newBlogContent.split(/\s+/).length / 200))} min read`,
+      date: new Date().toISOString().split("T")[0],
+      imageUrl: newBlogImage,
+      views: 0,
+      tags: tagsArr
+    };
+
+    const updated = [newPost, ...blogs];
+    setBlogs(updated);
+    localStorage.setItem("diginfotech_blogs", JSON.stringify(updated));
+    setBlogMsg("✅ Article published successfully!");
+    
+    // Clear form
+    setNewBlogTitle("");
+    setNewBlogSummary("");
+    setNewBlogContent("");
+    setNewBlogAuthor("");
+    setNewBlogTags("");
+    setTimeout(() => setBlogMsg(""), 4000);
+  };
+
+  const handleDeleteBlog = (blogId: string) => {
+    if (!window.confirm("Are you sure you want to delete this article?")) return;
+    const updated = blogs.filter(b => b.id !== blogId);
+    setBlogs(updated);
+    localStorage.setItem("diginfotech_blogs", JSON.stringify(updated));
+    
+    // Clear URL search param if deleted article is shown
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("blog")) {
+      window.history.pushState({}, "", window.location.pathname);
+      setActiveReadingBlog(null);
+    }
+  };
+
+  const handleIncrementBlogViews = (blog: BlogPost) => {
+    const updated = blogs.map(b => {
+      if (b.id === blog.id) {
+        return { ...b, views: b.views + 1 };
+      }
+      return b;
+    });
+    setBlogs(updated);
+    localStorage.setItem("diginfotech_blogs", JSON.stringify(updated));
+    setActiveReadingBlog({ ...blog, views: blog.views + 1 });
+    
+    // Smooth URL browser search query update without reloading
+    const newUrl = `${window.location.pathname}?blog=${blog.slug}`;
+    window.history.pushState({ blogSlug: blog.slug }, "", newUrl);
+  };
+
+  const handleCloseBlog = () => {
+    setActiveReadingBlog(null);
+    // Remove URL search parameter on modal clean dismiss
+    window.history.pushState({}, "", window.location.pathname);
+  };
 
   // Custom Admin System Banner / Alert messages sent to visitors
   const [adminBroadcast, setAdminBroadcast] = useState<string>(() => {
@@ -1561,6 +1827,690 @@ export default function App() {
     ? projects
     : projects.filter(p => p.category === selectedPortfolioTab);
 
+  if (allBlogsParamActive) {
+    return (
+      <div className="min-h-screen bg-[#0B0F17] text-white selection:bg-primary/30 tracking-tight font-sans relative overflow-x-hidden">
+        {/* GLOBAL ADMIN BROADCAST BANNER */}
+        {adminBroadcast && (
+          <div className="bg-gradient-to-r from-primary to-cyan-accent text-white text-center py-2.5 px-4 text-xs font-semibold tracking-wide relative z-50 flex items-center justify-center gap-2 animate-fade-in border-b border-white/10">
+            <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            <span>{adminBroadcast}</span>
+            <button
+              onClick={() => handleUpdateBroadcast("")}
+              className="ml-4 p-1 hover:scale-110 active:scale-95 text-white/80 hover:text-white rounded-md transition-all"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        
+        {/* GLOWING AMBIENT DECORATIONS */}
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2"></div>
+        <div className="absolute top-[300px] right-0 w-[400px] h-[400px] bg-cyan-accent/10 rounded-full blur-[140px] pointer-events-none translate-x-1/4"></div>
+
+        {/* DEDICATED HEADER FOR BLOG HUB */}
+        <header className="sticky top-0 z-45 bg-[#060913]/95 backdrop-blur-md border-b border-white/[0.05] transition-all">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <a href="/" onClick={(e) => { e.preventDefault(); window.location.href = window.location.pathname; }} className="flex items-center space-x-3 group outline-none">
+              <DiginfotechLogoIcon className="w-10 h-10" />
+              <div className="flex flex-col text-left font-sans">
+                <span className="text-lg font-black tracking-wider font-display uppercase text-white group-hover:text-cyan-accent transition-colors leading-none">
+                  Diginfotech
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.22em] text-[#00D1FF] mt-1 font-accent font-semibold flex items-center gap-1">
+                  Knowledge Hub <span className="text-white/45">|</span> India
+                </span>
+              </div>
+            </a>
+
+            <button
+              onClick={() => {
+                window.history.pushState({}, "", window.location.pathname);
+                setAllBlogsParamActive(false);
+              }}
+              className="px-4 py-2 border border-white/10 hover:border-primary/50 text-white hover:text-cyan-accent rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 cursor-pointer bg-white/5 active:scale-95 shadow-md font-sans"
+            >
+              <ChevronLeft className="w-4 h-4 text-cyan-accent shrink-0" />
+              <span>Back to Home</span>
+            </button>
+          </div>
+        </header>
+
+        {/* DEDICATED BODY CONTENT */}
+        <main className="py-20 relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10 text-center">
+          
+          <div className="max-w-3xl mx-auto mb-16 space-y-4">
+            <span className="inline-block text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/25 animate-pulse">
+              EXECUTIVE RESOURCE KNOWLEDGE HUB
+            </span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white">
+              The Complete <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Diginfotech Archives</span>
+            </h1>
+            <p className="text-white/60 text-sm md:text-base font-light font-sans">
+              Dive deep into expert strategies, smart automation workflows, high-speed website structures, and customer conversion design.
+            </p>
+          </div>
+
+          {/* Search and Category Filters */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 bg-white/[0.02] border border-white/5 rounded-2xl p-6">
+            {/* Category Selectors */}
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto font-sans">
+              {["All", "Tech", "Business", "Automation", "Marketing", "Design"].map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedBlogCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all duration-200 cursor-pointer ${
+                    selectedBlogCategory === category
+                      ? "bg-gradient-to-r from-primary to-cyan-accent text-white shadow-md shadow-primary/20"
+                      : "bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            {/* Instant Search Bar */}
+            <div className="relative w-full md:w-80">
+              <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-white/40 animate-pulse" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search articles, tags, titles..."
+                value={blogSearchQuery}
+                onChange={(e) => setBlogSearchQuery(e.target.value)}
+                className="w-full bg-white/5 hover:bg-white/10 text-white/90 placeholder-white/40 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-xs font-medium focus:outline-none focus:border-cyan-accent/80 transition-all font-sans"
+              />
+            </div>
+          </div>
+
+          {/* Complete Grid List (No Slice) */}
+          {(() => {
+            const sortedAndFiltered = [...blogs]
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .filter(post => {
+                const matchesCategory = selectedBlogCategory === "All" || post.category === selectedBlogCategory;
+                const normalizedQuery = blogSearchQuery.toLowerCase();
+                const matchesSearch = 
+                  post.title.toLowerCase().includes(normalizedQuery) ||
+                  post.summary.toLowerCase().includes(normalizedQuery) ||
+                  post.content.toLowerCase().includes(normalizedQuery) ||
+                  post.tags.some(t => t.toLowerCase().includes(normalizedQuery));
+                return matchesCategory && matchesSearch;
+              });
+
+            if (sortedAndFiltered.length === 0) {
+              return (
+                <div className="text-center py-24 border border-white/5 bg-white/[0.01] rounded-3xl p-10 max-w-xl mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+                    <FileText className="w-6 h-6 text-white/40" />
+                  </div>
+                  <h3 className="text-white text-base font-bold mb-2">No articles match your query</h3>
+                  <p className="text-white/40 text-sm max-w-sm mx-auto font-sans">
+                    Try selecting another category panel, adjusting search key phrases, or clicking 'All' to refresh lists.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {sortedAndFiltered.map((post) => (
+                  <a
+                    key={post.id}
+                    href={`?blog=${post.slug}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleIncrementBlogViews(post);
+                    }}
+                    className="group bg-[#0F1424] border border-white/10 hover:border-cyan-accent/30 rounded-3xl overflow-hidden shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between cursor-pointer block"
+                  >
+                    <div>
+                      {/* Cover Photo */}
+                      <div className="relative aspect-video w-full overflow-hidden bg-slate-900 border-b border-white/5">
+                        <img
+                          src={blogImageErrors[post.id] 
+                            ? (post.category === "Tech" ? "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"
+                               : post.category === "Business" ? "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
+                               : post.category === "Automation" ? "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80"
+                               : post.category === "Marketing" ? "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80"
+                               : "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80")
+                            : (post.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80")
+                          }
+                          alt={post.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                          onError={() => {
+                            setBlogImageErrors((prev) => ({ ...prev, [post.id]: true }));
+                          }}
+                        />
+                        <span className="absolute top-3 left-3 bg-primary/95 text-white text-[10px] font-mono tracking-widest uppercase font-bold py-1 px-2.5 rounded-full border border-primary/20">
+                          {post.category}
+                        </span>
+                      </div>
+
+                      {/* Content Card Meta */}
+                      <div className="p-6 pb-0 space-y-3">
+                        <div className="flex items-center text-white/40 text-[10px] font-mono justify-between font-sans">
+                          <span className="flex items-center space-x-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                            <span>{post.date}</span>
+                          </span>
+                          <span className="flex items-center space-x-1.5">
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <span>{post.readTime}</span>
+                          </span>
+                        </div>
+
+                        <h3 className="text-sm font-bold text-white group-hover:text-cyan-accent transition-colors leading-snug line-clamp-2 text-left">
+                          {post.title}
+                        </h3>
+
+                        <p className="text-white/50 text-xs font-light tracking-wide line-clamp-3 leading-relaxed text-left font-sans">
+                          {post.summary}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Author Row */}
+                    <div className="p-6 border-t border-white/5 mt-5 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white text-[10px] font-bold uppercase shrink-0 font-sans">
+                          {post.author.substring(0, 2)}
+                        </div>
+                        <span className="text-[11px] font-semibold text-white/70 font-sans">{post.author}</span>
+                      </div>
+
+                      <div className="flex items-center text-[10px] text-white/40 font-mono space-x-1.5">
+                        <Eye className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                        <span>{post.views} views</span>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            );
+          })()}
+        </main>
+
+        {/* FOOTER */}
+        <footer className="mt-32 border-t border-white/5 py-12 bg-[#060912]">
+          <div className="max-w-7xl mx-auto px-4 text-center text-white/45 text-xs tracking-wider uppercase font-mono">
+            <span>&copy; {new Date().getFullYear()} Diginfotech Solutions India. All Rights Reserved.</span>
+          </div>
+        </footer>
+
+        {/* RENDER THE BLOG ARTICLE READER OVERLAY IF ACTIVE */}
+        {activeReadingBlog && (
+          <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-md z-[100] overflow-y-auto flex items-center justify-center p-4">
+            <div className="bg-[#0B0F17] border border-white/10 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl relative my-8">
+              
+              <div className="absolute top-4 right-4 z-10">
+                <button
+                  onClick={handleCloseBlog}
+                  className="w-10 h-10 rounded-full bg-[#111625]/80 border border-white/15 hover:border-cyan-accent flex items-center justify-center text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="relative h-64 sm:h-80 w-full bg-slate-900 overflow-hidden">
+                {blogImageErrors[activeReadingBlog.id] ? (
+                  <div className="w-full h-full bg-[#111625] flex flex-col justify-center items-center p-6 relative overflow-hidden select-none">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.12),transparent)] opacity-80" />
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-cyan-accent/10 rounded-full blur-3xl" />
+                    <div className="relative z-10 flex flex-col items-center justify-center space-y-2">
+                      <div className="w-12 h-12 rounded-xl bg-cyan-accent/5 border border-cyan-accent/15 flex items-center justify-center text-cyan-accent font-sans">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-mono tracking-[0.2em] text-cyan-accent/70 uppercase font-semibold font-sans">
+                        {activeReadingBlog.category}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={activeReadingBlog.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"}
+                    alt={activeReadingBlog.title}
+                    className="w-full h-full object-cover opacity-60"
+                    referrerPolicy="no-referrer"
+                    onError={() => {
+                      setBlogImageErrors((prev) => ({ ...prev, [activeReadingBlog.id]: true }));
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F17] via-transparent to-black/30"></div>
+                
+                <div className="absolute bottom-6 left-6 right-6 sm:left-10 sm:right-10 text-left space-y-3">
+                  <span className="inline-block text-[10px] tracking-widest bg-primary px-2.5 py-1 text-white font-mono uppercase font-bold rounded-full border border-primary/25">
+                    {activeReadingBlog.category}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white leading-tight font-display drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] pr-10">
+                    {activeReadingBlog.title}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="p-6 sm:p-10 text-left space-y-8">
+                <div className="flex flex-wrap items-center justify-between border-b border-white/5 pb-6 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white text-xs font-bold uppercase font-sans">
+                      {activeReadingBlog.author.substring(0, 2)}
+                    </div>
+                    <div className="flex flex-col select-none">
+                      <span className="text-xs text-white/90 font-bold font-sans">{activeReadingBlog.author}</span>
+                      <span className="text-[10px] text-white/40 font-mono">Expert Author</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-[11px] text-white/40 font-mono">
+                    <span className="flex items-center space-x-1.5">
+                      <Calendar className="w-4 h-4 text-cyan-accent shrink-0" />
+                      <span>{activeReadingBlog.date}</span>
+                    </span>
+                    <span className="flex items-center space-x-1.5">
+                      <Clock className="w-4 h-4 text-cyan-accent shrink-0" />
+                      <span>{activeReadingBlog.readTime}</span>
+                    </span>
+                    <span className="relative flex items-center space-x-1.5">
+                      <Eye className="w-4 h-4 text-cyan-accent shrink-0" />
+                      <span>{activeReadingBlog.views} hits</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="prose prose-invert max-w-none text-white/80 space-y-4 text-sm font-sans leading-relaxed">
+                  {activeReadingBlog.content.split("\n\n").map((para, idx) => {
+                    if (para.startsWith("## ")) {
+                      return <h2 key={idx} className="text-lg font-bold text-white font-display border-b border-white/5 pt-4 pb-2 text-left">{para.replace("## ", "")}</h2>;
+                    }
+                    if (para.startsWith("### ")) {
+                      return <h3 key={idx} className="text-base font-bold text-[#818CF8] font-sans pt-3 pb-1 text-left">{para.replace("### ", "")}</h3>;
+                    }
+                    if (para.startsWith("- ") || para.startsWith("* ")) {
+                      const items = para.split("\n");
+                      return (
+                        <ul key={idx} className="list-disc pl-5 space-y-1.5 text-left text-white/70 font-sans">
+                          {items.map((item, iIdx) => (
+                            <li key={iIdx}>{item.replace(/^[-*]\s+/, "")}</li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                    return <p key={idx}>{para}</p>;
+                  })}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-6 border-t border-white/5">
+                  {activeReadingBlog.tags.map((tag, tIdx) => (
+                    <span key={tIdx} className="text-[10px] font-mono text-cyan-accent bg-cyan-accent/5 border border-cyan-accent/10 px-2.5 py-1 rounded-md uppercase">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-8 bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="space-y-1 text-left">
+                    <h4 className="text-sm font-bold text-white">Interested in implementing {activeReadingBlog.category} tech?</h4>
+                    <p className="text-xs text-white/50">Consult with standard engineering panels to integrate custom tools instantly.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.open(`https://wa.me/917906067756?text=Hi%20Diginfotech,%20I'm%20interested%20in%20discussing%20your%20article:%20${encodeURIComponent(activeReadingBlog.title)}`, "_blank");
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-primary to-cyan-accent hover:opacity-90 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center space-x-1.5 shrink-0"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5 shrink-0" />
+                    <span>Talk to Team</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (isAdminPanelOpen) {
+    return (
+      <div className="min-h-screen bg-[#070b13] text-white selection:bg-cyan-accent/20 tracking-tight font-sans relative overflow-x-hidden p-0 m-0 flex flex-col justify-between">
+        {/* GLOBAL ADMIN BROADCAST BANNER */}
+        {adminBroadcast && (
+          <div className="bg-gradient-to-r from-primary to-cyan-accent text-white text-center py-2.5 px-4 text-xs font-semibold tracking-wide relative z-50 flex items-center justify-center gap-2 animate-fade-in border-b border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-accent animate-ping shrink-0 animate-pulse"></span>
+            <span><strong>Global Announcement Active:</strong> {adminBroadcast}</span>
+            <button
+              onClick={() => handleUpdateBroadcast("")}
+              className="ml-4 p-1 hover:scale-110 active:scale-95 text-white/80 hover:text-white rounded-md transition-all cursor-pointer outline-none"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* GLOWING BACKGROUND LIGHTS */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[140px] pointer-events-none -translate-y-1/2"></div>
+        <div className="absolute top-[40%] right-0 w-[500px] h-[500px] bg-[#00D1FF]/5 rounded-full blur-[160px] pointer-events-none translate-x-1/4"></div>
+
+        {/* COMPREHENSIVE COLLAPSIBLE SIDEBAR MENU DRAWER */}
+        {isAdminMenuOpen && (
+          <div className="fixed inset-0 z-[1000] flex">
+            {/* Slide Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/85 backdrop-blur-sm transition-opacity duration-300"
+              onClick={() => setIsAdminMenuOpen(false)}
+            ></div>
+
+            {/* Slide Drawer Content Container */}
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#0D1220] border-r border-white/10 p-6 space-y-6 animate-fade-in shadow-[0_0_100px_rgba(0,186,255,0.2)] z-[1001] text-left">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+                <div className="flex items-center space-x-2.5">
+                  <Activity className="w-5 h-5 text-[#00D1FF] animate-pulse" />
+                  <h4 className="text-sm font-black font-display text-white tracking-widest uppercase">Admin Gateway</h4>
+                </div>
+                <button 
+                  onClick={() => setIsAdminMenuOpen(false)}
+                  className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all cursor-pointer outline-none"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-between">
+                <nav className="space-y-2">
+                  {[
+                    { id: "visitors", label: "Visitor Location Control", icon: Globe, color: "text-[#00D1FF]", count: visitors.length },
+                    { id: "leads", label: "Captured Leads Log", icon: Database, color: "text-[#818CF8]", count: leadsLog.length },
+                    { id: "livechat", label: "Support Live Chat Desk", icon: MessageSquare, color: "text-green-400", count: activeSessionsCount },
+                    { id: "sales", label: "Sales & Customers", icon: Tag, color: "text-amber-400", count: salesLog.length },
+                    { id: "blog", label: "Blogs & Articles", icon: FileText, color: "text-pink-400", count: blogs.length },
+                    { id: "controls", label: "Firewall & Overrides", icon: Sliders, color: "text-red-400", count: null }
+                  ].map((item) => {
+                    const isSelected = adminTab === item.id;
+                    const IconComp = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setAdminTab(item.id as any);
+                          const searchParams = new URLSearchParams(window.location.search);
+                          searchParams.set("admin-page", item.id);
+                          window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
+                          setIsAdminMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer text-left ${isSelected ? "bg-[#00D1FF]/15 text-white border border-[#00D1FF]/35 font-black shadow-lg shadow-[#00D1FF]/5" : "text-white/50 hover:bg-white/[0.03] hover:text-white border border-transparent"}`}
+                      >
+                        <div className="flex items-center space-x-3">
+                           <IconComp className={`w-4 h-4 ${item.color} ${isSelected ? "animate-pulse" : ""}`} />
+                           <span>{item.label}</span>
+                        </div>
+                        {item.count !== null && (
+                          <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-mono ${isSelected ? "bg-[#00D1FF]/25 text-[#00D1FF] font-black" : "bg-white/5 text-white/30"}`}>
+                            {item.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
+
+                <div className="border-t border-white/[0.08] pt-4 space-y-3">
+                  <div className="text-[10px] font-mono text-white/30 text-center uppercase tracking-widest leading-relaxed">
+                    UTC SYSTEM ACTIVE<br/>NODE CONNECTED GATEWAY
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsAdminPanelOpen(false);
+                      window.history.pushState({}, "", window.location.pathname);
+                    }}
+                    className="w-full py-3 text-xs font-bold uppercase tracking-widest bg-red-500/10 hover:bg-red-500/20 text-red-150 border border-red-500/20 rounded-xl transition-all cursor-pointer text-center outline-none"
+                  >
+                    Exit Control Desk
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* HIGHLY OPTIMIZED HEADER PANEL */}
+        <header className="sticky top-0 z-40 bg-[#060913]/98 backdrop-blur-md border-b border-white/[0.06] transition-all px-4 sm:px-6 lg:px-8 py-4 shrink-0 shadow-xl">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {/* SLIDE SIDEBAR ACTIVATION HAMBURGER TRIGGER BUTTON */}
+              <button
+                type="button"
+                onClick={() => setIsAdminMenuOpen(true)}
+                className="p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white cursor-pointer hover:border-[#00D1FF]/50 transition-all flex items-center justify-center outline-none"
+                title="Toggle Administrative Sidebar"
+              >
+                <Menu className="w-5 h-5 text-[#00D1FF] animate-pulse" />
+              </button>
+
+              <div className="flex items-center space-x-2.5">
+                <DiginfotechLogoIcon className="w-8 h-8 pointer-events-none" />
+                <div className="text-left font-sans">
+                  <h3 className="text-sm font-black text-white tracking-widest uppercase font-display leading-none">
+                    Diginfotech <span className="text-[#00D1FF] font-light lowercase">admin</span>
+                  </h3>
+                  <span className="text-[8px] uppercase tracking-widest text-[#00D1FF] block mt-1 font-mono">
+                    Administrative Core
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Breadcrumb section indicator */}
+            <div className="hidden md:flex items-center space-x-2.5 font-mono text-xs text-white/40">
+              <ChevronRight className="w-4 h-4 text-white/20 animate-pulse" />
+              <span className="uppercase text-white/90 font-black bg-white/[0.04] border border-white/10 px-3.5 py-1.5 rounded-lg flex items-center space-x-2">
+                {adminTab === "visitors" ? "📍 Visitor Location Control" :
+                 adminTab === "leads" ? "📥 Captured Inbound Leads" :
+                 adminTab === "livechat" ? "💬 Support Live Chat Desk" :
+                 adminTab === "sales" ? "💰 Sales & Client Invoices" :
+                 adminTab === "blog" ? "📝 Blogs & Articles Manager" :
+                 "🛡️ Operations Firewall Control"}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              {pendingChatRequests.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsRequestPopupDismissed(false)}
+                  className="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 text-[10px] font-bold uppercase tracking-wider rounded-xl animate-pulse cursor-pointer"
+                  title="Show incoming live agent requests"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400"></span>
+                  </span>
+                  <span>{pendingChatRequests.length} Live Request</span>
+                </button>
+              )}
+              <div className="hidden sm:flex items-center space-x-1.5 font-mono text-[10px] text-[#00D1FF] bg-[#00D1FF]/5 px-2.5 py-1 rounded-lg border border-[#00D1FF]/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span>SECURED NODE</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminPanelOpen(false);
+                  window.history.pushState({}, "", window.location.pathname);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-red-500/10 to-red-600/15 border border-red-500/25 hover:border-red-500/50 text-red-400 text-xs font-bold uppercase tracking-widest rounded-xl transition-all cursor-pointer outline-none"
+              >
+                Close Control Desk
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* MASTER FULL-SCREEN WORKSPACE (SPACIOUS, NON-CLUTTERED) */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 select-none">
+          
+          {/* Quick Metrics Bento grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
+            <div 
+              onClick={() => {
+                setAdminTab("visitors");
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set("admin-page", "visitors");
+                window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
+              }}
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden shadow-lg cursor-pointer ${adminTab === "visitors" ? "bg-[#00D1FF]/5 border-[#00D1FF]/35" : "bg-[#0c101a] border-white/5 hover:border-[#00D1FF]/20"}`}
+            >
+              <div className="absolute top-5 right-5 text-white/5"><Globe className="w-8 h-8" /></div>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Logged Sessions</span>
+              <span className="text-3xl font-black text-white mt-1.5">{visitors.length}</span>
+            </div>
+            <div 
+              onClick={() => {
+                setAdminTab("livechat");
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set("admin-page", "livechat");
+                window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
+              }}
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden shadow-lg cursor-pointer ${adminTab === "livechat" ? "bg-green-500/5 border-green-500/35" : "bg-[#0c101a] border-white/5 hover:border-green-400/20"}`}
+            >
+              <div className="absolute top-5 right-5 text-white/5"><Activity className="w-8 h-8 text-[#00D1FF]" /></div>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Active Chats</span>
+              <span className="text-3xl font-black text-green-400 mt-1.5">{activeSessionsCount}</span>
+            </div>
+            <div 
+              onClick={() => {
+                setAdminTab("controls");
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set("admin-page", "controls");
+                window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
+              }}
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden shadow-lg cursor-pointer ${adminTab === "controls" ? "bg-red-500/5 border-red-500/35" : "bg-[#0c101a] border-white/5 hover:border-red-400/20"}`}
+            >
+              <div className="absolute top-5 right-5 text-white/5"><Shield className="w-8 h-8 text-red-500/30" /></div>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Blocked Nodes</span>
+              <span className="text-3xl font-black text-red-400 mt-1.5">{blockedIps.length}</span>
+            </div>
+            <div 
+              onClick={() => {
+                setAdminTab("leads");
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set("admin-page", "leads");
+                window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
+              }}
+              className={`p-5 rounded-2xl border transition-all flex flex-col justify-between relative overflow-hidden shadow-lg cursor-pointer ${adminTab === "leads" ? "bg-[#818CF8]/5 border-[#818CF8]/35" : "bg-[#0c101a] border-white/5 hover:border-[#818CF8]/20"}`}
+            >
+              <div className="absolute top-5 right-5 text-white/5"><Database className="w-8 h-8 text-[#00D1FF]/35" /></div>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest font-black">Captured Leads</span>
+              <span className="text-3xl font-black text-[#818CF8] mt-1.5">{leadsLog.length}</span>
+            </div>
+          </div>
+
+          {/* ACTIVE VIEW WRAPPER */}
+          <div className="w-full bg-[#0E1320] border border-white/10 rounded-[28px] p-6 sm:p-8 lg:p-10 shadow-2xl relative min-h-[500px]">
+            {adminTab === "visitors" && (
+              <AdminVisitorsTab 
+                visitors={visitors} 
+                blockedIps={blockedIps} 
+                handleBlockIp={handleBlockIp} 
+              />
+            )}
+
+            {adminTab === "leads" && (
+              <AdminLeadsTab 
+                leadsLog={leadsLog} 
+                handleExportInquiries={handleExportInquiries} 
+                showClearConfirm={showClearConfirm} 
+                setShowClearConfirm={setShowClearConfirm} 
+                handleClearInquiries={handleClearInquiries} 
+                handleUpdateLeadsStatus={handleUpdateLeadsStatus} 
+              />
+            )}
+
+            {adminTab === "livechat" && (
+              <AdminLiveChatTab 
+                adminAllChats={adminAllChats} 
+                selectedAdminSessionId={selectedAdminSessionId} 
+                setSelectedAdminSessionId={setSelectedAdminSessionId} 
+                adminReplyInput={adminReplyInput} 
+                setAdminReplyInput={setAdminReplyInput} 
+                onSubmitReply={async (text) => {
+                  const replyPayload = {
+                    id: `admin-reply-${Date.now()}`,
+                    sessionId: selectedAdminSessionId || (adminAllChats.length > 0 ? adminAllChats[0].sessionId : ""),
+                    sender: "agent",
+                    text,
+                    visitorName: "Guest User",
+                    visitorEmail: "Unknown",
+                    createdAt: serverTimestamp()
+                  };
+                  try {
+                    await addDoc(collection(db, "chats"), replyPayload);
+                    setAdminReplyInput("");
+                  } catch (err) {
+                    handleFirestoreError(err, OperationType.WRITE, "chats");
+                  }
+                }} 
+                activeSessionsCount={activeSessionsCount} 
+              />
+            )}
+
+            {adminTab === "sales" && (
+              <AdminSalesTab 
+                salesLog={salesLog} 
+                salesSearch={salesSearch} 
+                setSalesSearch={setSalesSearch} 
+                salesFilter={salesFilter} 
+                setSalesFilter={setSalesFilter} 
+                handleExportSales={handleExportSales} 
+                handleClearSales={handleClearSales} 
+              />
+            )}
+
+            {adminTab === "blog" && (
+              <AdminBlogTab 
+                blogs={blogs} 
+                newBlogAuthor={newBlogAuthor} 
+                setNewBlogAuthor={setNewBlogAuthor} 
+                newBlogCategory={newBlogCategory} 
+                setNewBlogCategory={setNewBlogCategory} 
+                newBlogTitle={newBlogTitle} 
+                setNewBlogTitle={setNewBlogTitle} 
+                newBlogSummary={newBlogSummary} 
+                setNewBlogSummary={setNewBlogSummary} 
+                newBlogContent={newBlogContent} 
+                setNewBlogContent={setNewBlogContent} 
+                newBlogImage={newBlogImage} 
+                setNewBlogImage={setNewBlogImage} 
+                newBlogTags={newBlogTags} 
+                setNewBlogTags={setNewBlogTags} 
+                blogMsg={blogMsg} 
+                handleCreateBlog={handleCreateBlog} 
+                handleDeleteBlog={handleDeleteBlog} 
+              />
+            )}
+
+            {adminTab === "controls" && (
+              <AdminControlsTab 
+                adminBroadcast={adminBroadcast} 
+                handleUpdateBroadcast={handleUpdateBroadcast} 
+                isMaintenanceActive={isMaintenanceActive} 
+                handleToggleMaintenance={handleToggleMaintenance} 
+                currentUserDetails={currentUserDetails} 
+              />
+            )}
+          </div>
+        </main>
+
+        <footer className="py-6 border-t border-white/[0.04] text-[10px] text-white/30 tracking-wider font-mono text-center shrink-0">
+          &copy; {new Date().getFullYear()} Diginfotech Admin Gateway. Audit traces active.
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0B0F17] text-white selection:bg-primary/30 tracking-tight font-sans relative overflow-x-hidden">
       
@@ -1605,6 +2555,8 @@ export default function App() {
             <a href="#services" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Services</a>
             <a href="#why-choose-us" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Advantages</a>
             <a href="#portfolio" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Portfolio</a>
+            <a href="#pricing" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Pricing</a>
+            <a href="#blog" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Blog</a>
             <a href="#testimonials" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Reviews</a>
             <a href="#contact" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Contact Us</a>
           </nav>
@@ -1679,6 +2631,20 @@ export default function App() {
               className="text-white/80 hover:text-primary text-base font-semibold py-2"
             >
               Portfolio Gallery
+            </a>
+            <a 
+              href="#pricing" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
+            >
+              Investment Packages
+            </a>
+            <a 
+              href="#blog" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-white/80 hover:text-primary text-base font-semibold py-2"
+            >
+              Blog
             </a>
             <a 
               href="#testimonials" 
@@ -2322,20 +3288,12 @@ export default function App() {
           </div>
 
           {/* Pricing Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-4 group/pricing">
             
             {/* Package 1: Starter */}
             <div 
               id="pricing-plan-starter" 
-              onMouseEnter={() => setHoveredPricingPlan("starter")}
-              onMouseLeave={() => setHoveredPricingPlan(null)}
-              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border ${
-                hoveredPricingPlan === "starter"
-                  ? "bg-[#12192E] border-cyan-400 scale-[1.04] shadow-[0_0_50px_rgba(6,182,212,0.35)] z-20"
-                  : hoveredPricingPlan !== null
-                    ? "bg-[#0F1424]/40 border-white/5 opacity-35 scale-[0.96] blur-[0.5px]"
-                    : "bg-[#0F1424] border-white/10 hover:border-cyan-accent/40 shadow-2xl hover:-translate-y-1 hover:bg-[#12192E] hover:shadow-[0_0_35px_rgba(6,182,212,0.15)]"
-              }`}
+              className="relative p-8 rounded-3xl transition-all duration-300 flex flex-col justify-between group/card overflow-hidden border bg-[#0F1424] border-white/10 shadow-2xl hover:-translate-y-2 hover:bg-[#12192E] hover:border-cyan-accent hover:shadow-[0_0_50px_rgba(6,182,212,0.35)] hover:scale-[1.04] hover:z-20 group-hover/pricing:opacity-40 group-hover/pricing:scale-[0.97] group-hover/pricing:blur-[0.5px] hover:!opacity-100 hover:!scale-[1.04] hover:!blur-none"
             >
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -2402,15 +3360,7 @@ export default function App() {
             {/* Package 2: Growth (Featured Premium) */}
             <div 
               id="pricing-plan-growth" 
-              onMouseEnter={() => setHoveredPricingPlan("growth")}
-              onMouseLeave={() => setHoveredPricingPlan(null)}
-              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border-2 ${
-                hoveredPricingPlan === "growth"
-                  ? "bg-[#18213D] border-primary scale-[1.04] shadow-[0_0_60px_rgba(99,102,241,0.5)] z-20"
-                  : hoveredPricingPlan !== null
-                    ? "bg-[#141B33]/40 border-primary/20 opacity-35 scale-[0.96] blur-[0.5px]"
-                    : "bg-[#141B33] border-primary shadow-2xl hover:-translate-y-1.5 hover:bg-[#18213D] hover:shadow-[0_0_45px_rgba(99,102,241,0.25)] shadow-primary/10"
-              }`}
+              className="relative p-8 rounded-3xl transition-all duration-300 flex flex-col justify-between group/card overflow-hidden border-2 bg-[#141B33] border-primary shadow-2xl hover:-translate-y-2 hover:bg-[#18213D] hover:shadow-[0_0_60px_rgba(99,102,241,0.5)] hover:scale-[1.04] hover:z-20 group-hover/pricing:opacity-40 group-hover/pricing:scale-[0.97] group-hover/pricing:blur-[0.5px] hover:!opacity-100 hover:!scale-[1.04] hover:!blur-none"
             >
               {/* Highlight sash badge */}
               <div className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold py-1 px-4 tracking-widest uppercase rounded-bl-xl font-mono z-10 animate-pulse">
@@ -2485,15 +3435,7 @@ export default function App() {
             {/* Package 3: Enterprise */}
             <div 
               id="pricing-plan-enterprise" 
-              onMouseEnter={() => setHoveredPricingPlan("enterprise")}
-              onMouseLeave={() => setHoveredPricingPlan(null)}
-              className={`relative p-8 rounded-3xl transition-all duration-500 flex flex-col justify-between group overflow-hidden border ${
-                hoveredPricingPlan === "enterprise"
-                  ? "bg-[#12192E] border-cyan-400 scale-[1.04] shadow-[0_0_50px_rgba(6,182,212,0.35)] z-20"
-                  : hoveredPricingPlan !== null
-                    ? "bg-[#0F1424]/40 border-white/5 opacity-35 scale-[0.96] blur-[0.5px]"
-                    : "bg-[#0F1424] border-white/10 hover:border-cyan-accent/40 shadow-2xl hover:-translate-y-1 hover:bg-[#12192E] hover:shadow-[0_0_35px_rgba(6,182,212,0.15)]"
-              }`}
+              className="relative p-8 rounded-3xl transition-all duration-300 flex flex-col justify-between group/card overflow-hidden border bg-[#0F1424] border-white/10 shadow-2xl hover:-translate-y-2 hover:bg-[#12192E] hover:border-cyan-accent hover:shadow-[0_0_50px_rgba(6,182,212,0.35)] hover:scale-[1.04] hover:z-20 group-hover/pricing:opacity-40 group-hover/pricing:scale-[0.97] group-hover/pricing:blur-[0.5px] hover:!opacity-100 hover:!scale-[1.04] hover:!blur-none"
             >
               <div className="space-y-6">
                 <div className="space-y-2">
@@ -2573,6 +3515,350 @@ export default function App() {
 
         </div>
       </section>
+
+      {/* --- 4.6. SEO ORGANIC TRAFFIC HUBS & RECONNAISSANCE BLOG --- */}
+      <section id="blog" className="py-24 border-t border-white/[0.05] relative bg-[#060913] overflow-hidden">
+        {/* Glow anchors */}
+        <div className="absolute top-1/4 left-10 w-[350px] h-[350px] bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 right-10 w-[350px] h-[350px] bg-cyan-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+            <span className="inline-block text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/25 animate-pulse">
+              OUR LATEST BLOGS
+            </span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white">
+              Websites, Tech & Design <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Blog</span>
+            </h2>
+            <p className="text-white/60 text-sm md:text-base font-light">
+              Simple articles to help you understand websites, smart tools, and design.
+            </p>
+          </div>
+
+          {/* Blog Feed Grid (Exactly 3 latest blogs, sorted date descending) */}
+          {(() => {
+            const latestThree = [...blogs]
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 3);
+
+            if (latestThree.length === 0) {
+              return (
+                <div className="text-center py-16 border border-white/5 bg-white/[0.01] rounded-2xl p-8">
+                  <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-5 h-5 text-white/40" />
+                  </div>
+                  <h3 className="text-white font-bold mb-2 text-sm">No blog articles found</h3>
+                  <p className="text-white/40 text-xs max-w-sm mx-auto font-sans">
+                    Publish articles in the secure Administration Panel to show items here.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {latestThree.map((post) => (
+                    <a
+                      key={post.id}
+                      href={`?blog=${post.slug}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleIncrementBlogViews(post);
+                      }}
+                      className="group bg-[#0F1424] border border-white/10 hover:border-cyan-accent/30 rounded-3xl overflow-hidden shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between cursor-pointer block"
+                    >
+                      <div>
+                        {/* Cover Photo */}
+                        <div className="relative aspect-video w-full overflow-hidden bg-slate-900 border-b border-white/5">
+                          <img
+                            src={blogImageErrors[post.id] 
+                              ? (post.category === "Tech" ? "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"
+                                 : post.category === "Business" ? "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80"
+                                 : post.category === "Automation" ? "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80"
+                                 : post.category === "Marketing" ? "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80"
+                                 : "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80")
+                              : (post.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80")
+                            }
+                            alt={post.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            referrerPolicy="no-referrer"
+                            onError={() => {
+                              setBlogImageErrors((prev) => ({ ...prev, [post.id]: true }));
+                            }}
+                          />
+                          <span className="absolute top-3 left-3 bg-primary/95 text-white text-[10px] font-mono tracking-widest uppercase font-bold py-1 px-2.5 rounded-full border border-primary/20">
+                            {post.category}
+                          </span>
+                        </div>
+
+                        {/* Content Card Meta */}
+                        <div className="p-6 pb-0 space-y-3">
+                          <div className="flex items-center text-white/40 text-[10px] font-mono justify-between font-sans">
+                            <span className="flex items-center space-x-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                              <span>{post.date}</span>
+                            </span>
+                            <span className="flex items-center space-x-1.5 font-sans">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              <span>{post.readTime}</span>
+                            </span>
+                          </div>
+
+                          <h3 className="text-sm font-bold text-white group-hover:text-cyan-accent transition-colors leading-snug line-clamp-2 text-left">
+                            {post.title}
+                          </h3>
+
+                          <p className="text-white/50 text-xs font-light tracking-wide line-clamp-3 leading-relaxed text-left font-sans">
+                            {post.summary}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Bottom Author Row */}
+                      <div className="p-6 border-t border-white/5 mt-5 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white text-[10px] font-bold uppercase shrink-0 font-sans">
+                            {post.author.substring(0, 2)}
+                          </div>
+                          <span className="text-[11px] font-semibold text-white/70 font-sans">{post.author}</span>
+                        </div>
+
+                        <div className="flex items-center text-[10px] text-white/40 font-mono space-x-1.5">
+                          <Eye className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                          <span>{post.views} views</span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+
+                {/* Option to read more blogs in a separate tab page */}
+                <div className="text-center pt-4">
+                  <a
+                    href="?view=all-blogs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-2.5 px-8 py-4 bg-gradient-to-r from-primary to-cyan-accent hover:opacity-90 active:scale-95 text-white rounded-2xl text-xs uppercase tracking-widest font-bold transition-all shadow-lg shadow-primary/10 cursor-pointer"
+                  >
+                    <span>Read More Blogs</span>
+                    <BookOpen className="w-4 h-4 text-white animate-pulse" />
+                  </a>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Prompt banner to request articles directly */}
+          <div className="mt-16 bg-gradient-to-r from-[#111625] to-[#0A0D1A] border border-white/10 rounded-3xl p-8 sm:p-10 flex flex-col md:flex-row items-center justify-between gap-6 text-left">
+            <div className="space-y-2 max-w-xl">
+              <h3 className="text-lg sm:text-xl font-bold text-white">Need custom guidance for your digital workflow?</h3>
+              <p className="text-white/50 text-xs sm:text-sm font-light">
+                Our consultancy engineers will audit your corporate pages, SEO semantic architectures, and direct client pathways. Get in touch for a completely free proposal.
+              </p>
+            </div>
+            <a
+              href="#contact"
+              className="px-6 py-3.5 bg-gradient-to-r from-primary to-cyan-accent hover:from-[#431BDB] hover:to-cyan-400 text-white rounded-xl text-xs uppercase tracking-widest font-bold transition-all shrink-0 shadow-lg shadow-primary/15"
+            >
+              Request Free Audit
+            </a>
+          </div>
+
+        </div>
+      </section>
+
+      {/* --- BLOG ARTICLE READER MODAL (FULL CONTENT VIEW WITH PREMIUM WORKSPACE TYPOGRAPHY) --- */}
+      {activeReadingBlog && (
+        <div className="fixed inset-0 bg-[#060913]/90 backdrop-blur-md z-50 overflow-y-auto flex items-center justify-center p-4">
+          <div className="bg-[#0B0F17] border border-white/10 w-full max-w-4xl rounded-3xl overflow-hidden shadow-2xl relative my-8">
+            
+            {/* Top Close Bar */}
+            <div className="absolute top-4 right-4 z-10">
+              <button
+                onClick={() => setActiveReadingBlog(null)}
+                className="w-10 h-10 rounded-full bg-[#111625]/80 border border-white/15 hover:border-cyan-accent flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Premium Header Cover */}
+            <div className="relative h-64 sm:h-80 w-full bg-slate-900 overflow-hidden">
+              {blogImageErrors[activeReadingBlog.id] ? (
+                <div className="w-full h-full bg-[#111625] flex flex-col justify-center items-center p-6 relative overflow-hidden select-none">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.12),transparent)] opacity-80" />
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-cyan-accent/10 rounded-full blur-3xl" />
+                  <div className="relative z-10 flex flex-col items-center justify-center space-y-2">
+                    <div className="w-12 h-12 rounded-xl bg-cyan-accent/5 border border-cyan-accent/15 flex items-center justify-center text-cyan-accent">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-mono tracking-[0.2em] text-cyan-accent/70 uppercase font-semibold">
+                      {activeReadingBlog.category}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={activeReadingBlog.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"}
+                  alt={activeReadingBlog.title}
+                  className="w-full h-full object-cover opacity-60"
+                  referrerPolicy="no-referrer"
+                  onError={() => {
+                    setBlogImageErrors((prev) => ({ ...prev, [activeReadingBlog.id]: true }));
+                  }}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F17] via-transparent to-black/30"></div>
+              
+              <div className="absolute bottom-6 left-6 right-6 sm:left-10 sm:right-10 text-left space-y-3">
+                <span className="inline-block bg-primary text-white text-[9px] font-mono tracking-widest uppercase font-bold py-1 px-3 rounded-full border border-primary/20">
+                  {activeReadingBlog.category}
+                </span>
+                <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white font-display leading-tight tracking-tight">
+                  {activeReadingBlog.title}
+                </h1>
+              </div>
+            </div>
+
+            {/* Author Meta Row */}
+            <div className="bg-white/[0.02] border-b border-white/5 py-4 px-6 sm:px-10 flex flex-wrap items-center justify-between gap-4 text-left">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white text-xs font-bold uppercase shrink-0">
+                  {activeReadingBlog.author.substring(0, 2)}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs text-white/90 font-bold">{activeReadingBlog.author}</span>
+                  <span className="text-[10px] text-white/40">Technical Advisory Board</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6 text-[11px] font-mono text-white/50">
+                <span className="flex items-center space-x-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                  <span>{activeReadingBlog.date}</span>
+                </span>
+                <span className="flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>{activeReadingBlog.readTime}</span>
+                </span>
+                <span className="flex items-center space-x-1.5">
+                  <Eye className="w-3.5 h-3.5 text-cyan-accent shrink-0" />
+                  <span>{activeReadingBlog.views} hits</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Article Typographic Grid */}
+            <div className="p-6 sm:p-10 text-left">
+              <div className="prose prose-invert max-w-none text-white/80 text-xs sm:text-sm font-light leading-relaxed space-y-5">
+                {activeReadingBlog.content.split("\n\n").map((para, idx) => {
+                  if (para.startsWith("## ")) {
+                    return (
+                      <h2 key={idx} className="text-lg sm:text-xl font-bold text-white font-display pt-4 pb-1 border-b border-white/5 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
+                        {para.replace("## ", "")}
+                      </h2>
+                    );
+                  }
+                  if (para.startsWith("### ")) {
+                    return (
+                      <h3 key={idx} className="text-sm sm:text-base font-bold text-cyan-accent font-display pt-2">
+                        {para.replace("### ", "")}
+                      </h3>
+                    );
+                  }
+                  if (para.startsWith("- **") || para.startsWith("- ")) {
+                    return (
+                      <ul key={idx} className="list-disc pl-5 space-y-2 my-2">
+                        {para.split("\n").map((bullet, bIdx) => {
+                          const cleanBullet = bullet.replace(/^-\s*/, "");
+                          return (
+                            <li key={bIdx} className="text-white/70 text-xs sm:text-sm">
+                              {cleanBullet.includes("**") ? (
+                                <>
+                                  <strong className="text-white font-semibold">
+                                    {cleanBullet.split("**")[1]}
+                                  </strong>
+                                  {cleanBullet.split("**")[2] || ""}
+                                </>
+                              ) : (
+                                cleanBullet
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    );
+                  }
+                  if (para.match(/^\d+\.\s+\*\*/)) {
+                    return (
+                      <ol key={idx} className="list-decimal pl-5 space-y-2 my-2 w-full">
+                        {para.split("\n").map((item, iIdx) => {
+                          const cleanItem = item.replace(/^\d+\.\s*/, "");
+                          return (
+                            <li key={iIdx} className="text-white/70 text-xs sm:text-sm">
+                              {cleanItem.includes("**") ? (
+                                <>
+                                  <strong className="text-cyan-accent font-semibold">
+                                    {cleanItem.split("**")[1]}
+                                  </strong>
+                                  {cleanItem.split("**")[2] || ""}
+                                </>
+                              ) : (
+                                cleanItem
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    );
+                  }
+                  return (
+                    <p key={idx} className="text-white/75 font-sans leading-relaxed whitespace-pre-line text-justify">
+                      {para}
+                    </p>
+                  );
+                })}
+              </div>
+
+              {/* Tags panel */}
+              <div className="mt-8 pt-6 border-t border-white/5 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] text-white/40 uppercase font-mono font-bold tracking-wider mr-2 flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-cyan-accent" /> Tags:
+                </span>
+                {activeReadingBlog.tags.map((tag, tIdx) => (
+                  <span
+                    key={tIdx}
+                    className="bg-white/5 border border-white/10 rounded-md py-1 px-2.5 text-[10px] font-semibold text-white/60 font-mono"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+
+              {/* Instant Call To Action for this blog post */}
+              <div className="mt-10 bg-cyan-accent/5 border border-cyan-accent/20 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-left space-y-1">
+                  <h4 className="text-sm font-bold text-white">Interested in implementing {activeReadingBlog.category} tech?</h4>
+                  <p className="text-white/50 text-[11px] font-light">Discuss this specific article topic with Pranav Sharma instantly via WhatsApp.</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveReadingBlog(null);
+                    window.open(`https://wa.me/917906067756?text=Hi%20Diginfotech,%20I'm%20interested%20in%20discussing%20your%20article:%20${encodeURIComponent(activeReadingBlog.title)}`, "_blank");
+                  }}
+                  className="px-4 py-2.5 bg-cyan-accent text-slate-950 rounded-xl text-xs font-bold uppercase tracking-wider transition-all hover:bg-cyan-400 cursor-pointer flex items-center space-x-1.5 shadow-md shadow-cyan-accent/10"
+                >
+                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <span>Instant WhatsApp Consult</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* 5. TESTIMONIALS SECTION (Interactive slide blocks with visual quotes) */}
       <section id="testimonials" className="py-24 border-t border-white/[0.05] relative bg-[#060913]">
@@ -3353,24 +4639,26 @@ export default function App() {
           </div>
         )}
 
-        {/* Floating Call & Email quick connect items (shown neatly above actions when hovered or triggered) */}
+        {/* Floating Call & Email quick connect items (shown neatly above actions when hovered) */}
         {!isChatOpen && (
-          <div id="floating-assist-drawer" className="flex flex-col items-end space-y-2.5 transition-all">
+          <div id="floating-assist-drawer" className="flex flex-col items-end space-y-3 transition-all mb-1 select-none">
             <a 
               href={`tel:${contactPhone}`}
-              className="flex items-center space-x-2 px-4 py-2 rounded-full border shadow-lg border-white/[0.08] hover:border-primary bg-[#111622] text-white/90 text-xs font-bold transition-all"
+              className="relative flex items-center justify-center sm:space-x-2.5 w-12 h-12 sm:w-auto sm:h-11 sm:px-4 sm:py-2 rounded-full border border-white/10 hover:border-primary/55 bg-gradient-to-br from-[#1C2538] via-[#101625] to-[#040813] text-white/95 text-xs font-bold transition-all shadow-[0_10px_25px_rgba(0,0,0,0.5),_inset_0_3px_5px_rgba(255,255,255,0.12),_inset_0_-3px_5px_rgba(0,0,0,0.45)] hover:scale-105 active:scale-95 cursor-pointer group overflow-hidden"
               title="Fast direct phone connection"
             >
-              <Phone className="w-3.5 h-3.5 text-primary animate-pulse" />
-              <span className="hidden sm:inline">Call Office</span>
+              <span className="absolute top-0.5 left-1 w-9 h-4 bg-gradient-to-b from-white/12 to-transparent rounded-full filter blur-[0.5px] pointer-events-none transform -rotate-12"></span>
+              <Phone className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-cyan-accent animate-pulse shrink-0" />
+              <span className="hidden sm:inline tracking-wide font-sans">Call Office</span>
             </a>
             <a 
               href={`mailto:${contactEmail}`}
-              className="flex items-center space-x-2 px-4 py-2 rounded-full border shadow-lg border-white/[0.08] hover:border-primary bg-[#111622] text-white/90 text-xs font-bold transition-all"
+              className="relative flex items-center justify-center sm:space-x-2.5 w-12 h-12 sm:w-auto sm:h-11 sm:px-4 sm:py-2 rounded-full border border-white/10 hover:border-primary/55 bg-gradient-to-br from-[#1C2538] via-[#101625] to-[#040813] text-white/95 text-xs font-bold transition-all shadow-[0_10px_25px_rgba(0,0,0,0.5),_inset_0_3px_5px_rgba(255,255,255,0.12),_inset_0_-3px_5px_rgba(0,0,0,0.45)] hover:scale-105 active:scale-95 cursor-pointer group overflow-hidden"
               title="Send enterprise brief email"
             >
-              <Mail className="w-3.5 h-3.5 text-primary" />
-              <span className="hidden sm:inline">Email Team</span>
+              <span className="absolute top-0.5 left-1 w-9 h-4 bg-gradient-to-b from-white/12 to-transparent rounded-full filter blur-[0.5px] pointer-events-none transform -rotate-12"></span>
+              <Mail className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-cyan-accent shrink-0" />
+              <span className="hidden sm:inline tracking-wide font-sans">Email Team</span>
             </a>
           </div>
         )}
@@ -3381,26 +4669,29 @@ export default function App() {
             setIsChatOpen(!isChatOpen);
             setIsChatNotificationActive(false);
           }}
-          className="relative w-14 h-14 rounded-full bg-gradient-to-r from-primary to-cyan-accent flex items-center justify-center text-white shadow-2xl transition-all hover:scale-105 active:scale-95 group focus:outline-none cursor-pointer border border-white/15"
+          className="relative w-14 h-14 rounded-full bg-gradient-to-br from-[#00F0FF] via-[#0066FF] to-[#7000FF] flex items-center justify-center text-white shadow-[0_12px_36px_rgba(0,102,255,0.5),_inset_0_4px_7px_rgba(255,255,255,0.45),_inset_0_-4px_7px_rgba(0,0,0,0.42),_0_2px_4px_rgba(0,0,0,0.15)] transition-all hover:scale-105 active:scale-95 group focus:outline-none cursor-pointer border border-white/20 select-none overflow-hidden"
           title="Open Live Chat Desk"
         >
+          {/* Authentic 3D light reflection highlight curve */}
+          <span className="absolute top-1 left-2 w-10.5 h-4.5 bg-gradient-to-b from-white/35 to-transparent rounded-full filter blur-[0.3px] pointer-events-none transform -rotate-12"></span>
+
           {/* Active notification indicator */}
           {isChatNotificationActive && (
             <>
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 z-10">
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 z-10">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 text-[9px] font-bold text-white items-center justify-center">1</span>
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-gradient-to-b from-red-400 to-red-600 text-[10px] font-black text-white items-center justify-center shadow-[0_3px_10px_rgba(239,68,68,0.55),_inset_0_1.5px_2px_rgba(255,255,255,0.45)] border border-red-500/10">1</span>
               </span>
               
               {/* Context prompt banner informing outside India clients */}
-              <div className="absolute right-18 bg-[#111622] border border-white/[0.08] px-3 py-2 rounded-xl text-[10.5px] font-bold text-white shadow-xl flex items-center space-x-2 animate-bounce select-none whitespace-nowrap leading-none">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+              <div className="absolute right-[4.5rem] md:right-18 bg-gradient-to-br from-[#121824] to-[#0D121F] border border-white/10 px-3.5 py-2.5 rounded-2xl text-[11px] font-bold text-white shadow-[0_12px_40px_rgba(0,0,0,0.65)] flex items-center space-x-2 animate-bounce select-none max-w-[65vw] sm:max-w-xs whitespace-normal sm:whitespace-nowrap leading-tight after:content-[''] after:absolute after:top-1/2 after:-translate-y-1/2 after:-right-2 after:border-y-[6px] after:border-y-transparent after:border-r-transparent after:border-l-[8px] after:border-l-[#0D121F] after:w-0 after:h-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shrink-0"></span>
                 <span>International Client? Chat Live with Team 💬</span>
               </div>
             </>
           )}
 
-          {isChatOpen ? <X className="w-6 h-6 animate-pulse" /> : <MessageSquare className="w-6 h-6 fill-white text-white" />}
+          {isChatOpen ? <X className="w-6 h-6 animate-pulse" /> : <MessageSquare className="w-6 h-6 fill-white text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]" />}
           
           <span className="absolute right-16 bg-[#111622] border border-white/[0.08] text-[10px] uppercase font-bold tracking-widest text-[#818CF8] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
             <span className="w-1.5 h-1.5 bg-primary rounded-full"></span>
@@ -3415,16 +4706,19 @@ export default function App() {
             target="_blank"
             rel="noreferrer"
             id="whatsapp-trigger"
-            className="relative w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center text-white shadow-2xl transition-all hover:scale-105 active:scale-95 group focus:outline-none outline-none cursor-pointer ring-4 ring-green-500/10"
+            className="relative w-14 h-14 rounded-full bg-gradient-to-br from-[#4ADE80] via-[#22C55E] to-[#15803D] flex items-center justify-center text-white shadow-[0_12px_36px_rgba(34,197,94,0.5),_inset_0_4px_7px_rgba(255,255,255,0.45),_inset_0_-4px_7px_rgba(0,0,0,0.38),_0_2px_4px_rgba(0,0,0,0.15)] transition-all hover:scale-105 active:scale-95 group focus:outline-none outline-none cursor-pointer border border-white/20 select-none overflow-hidden"
             title="Direct online support on WhatsApp"
           >
+            {/* Authentic 3D light reflection highlight curve */}
+            <span className="absolute top-1 left-2 w-10.5 h-4.5 bg-gradient-to-b from-white/35 to-transparent rounded-full filter blur-[0.3px] pointer-events-none transform -rotate-12"></span>
+
             {/* pulse wave rings around target */}
             <span className="absolute inset-0 rounded-full w-full h-full bg-green-500/20 animate-ping pointer-events-none"></span>
             
-            <Phone className="w-5 h-5 fill-white" />
+            <WhatsAppIcon className="w-6 h-6 fill-white text-white drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]" />
             
             {/* Smart Tooltip element */}
-            <span className="absolute right-16 bg-[#111622] border border-white/[0.08] text-[10px] uppercase font-bold tracking-widest text-primary px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
+            <span className="absolute right-16 bg-[#111622] border border-white/[0.08] text-[10px] uppercase font-bold tracking-widest text-[#22C55E] px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center space-x-1.5">
               <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
               <span>WhatsApp Chat</span>
             </span>
@@ -3572,9 +4866,13 @@ export default function App() {
             <form onSubmit={(e) => {
               e.preventDefault();
               if (adminPasswordInput === "Admin@2026") {
+                setAdminTab("visitors");
                 setIsAdminPanelOpen(true);
                 setIsAdminLoginOpen(false);
                 setAdminError("");
+                const searchParams = new URLSearchParams(window.location.search);
+                searchParams.set("admin-page", "visitors");
+                window.history.pushState({}, "", `${window.location.pathname}?${searchParams.toString()}`);
               } else {
                 setAdminError("Access Denied: Invalid Passphrase.");
               }
@@ -3799,6 +5097,12 @@ export default function App() {
                 className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "sales" ? "text-amber-400 border-b-2 border-amber-400 bg-white/[0.03]" : "text-white/40"}`}
               >
                 Sales & Customers ({salesLog.length})
+              </button>
+              <button
+                onClick={() => setAdminTab("blog")}
+                className={`py-3 px-5 text-xs font-bold uppercase tracking-wider relative cursor-pointer transition-all rounded-t-xl hover:bg-white/[0.02] whitespace-nowrap ${adminTab === "blog" ? "text-cyan-accent border-b-2 border-cyan-accent bg-white/[0.03]" : "text-white/40"}`}
+              >
+                Blogs & Articles ({blogs.length})
               </button>
               <button
                 onClick={() => setAdminTab("controls")}
@@ -4458,6 +5762,238 @@ export default function App() {
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {/* TAB 4.5: BLOG RESOURCE CREATION PANEL */}
+              {adminTab === "blog" && (
+                <div className="space-y-8 animate-fade-in text-left max-w-5xl mx-auto py-4">
+                  
+                  {/* Title Header */}
+                  <div className="border-b border-white/[0.06] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center space-x-2">
+                        <BookOpen className="w-4 h-4 text-cyan-accent" />
+                        <span>Blog & Article Publisher</span>
+                      </h3>
+                      <p className="text-xs text-white/50">Write simple and informative blog articles for your visitors.</p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center bg-white/5 border border-white/10 rounded-xl px-3.5 py-1.5 text-xs text-cyan-accent font-mono font-semibold">
+                      <FileText className="w-3.5 h-3.5 mr-2 shrink-0 animate-pulse" />
+                      <span>{blogs.length} Published articles</span>
+                    </div>
+                  </div>
+
+                  {/* Two column publisher grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    {/* Column 1: Creation Form (cols 7) */}
+                    <form onSubmit={handleCreateBlog} className="lg:col-span-7 bg-[#070b13] border border-white/10 rounded-2xl p-6 space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-white/95 font-mono mb-2">Publish a New Article</h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Author Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Pranav Sharma"
+                            value={newBlogAuthor}
+                            onChange={(e) => setNewBlogAuthor(e.target.value)}
+                            className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white placeholder:text-white/20"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Category *</label>
+                          <select
+                            value={newBlogCategory}
+                            onChange={(e) => setNewBlogCategory(e.target.value as any)}
+                            className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white cursor-pointer font-bold outline-none"
+                          >
+                            <option value="Tech">Tech / Web3</option>
+                            <option value="Automation">Automation & Efficiency</option>
+                            <option value="Business">Business Conversion</option>
+                            <option value="Marketing">Growth Marketing</option>
+                            <option value="Design">Product Design</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Article Title *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. How to grow your business using simple tools"
+                          value={newBlogTitle}
+                          onChange={(e) => setNewBlogTitle(e.target.value)}
+                          className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white placeholder:text-white/20"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Brief Summary (Short description) *</label>
+                        <input
+                          type="text"
+                          placeholder="A quick 1-2 sentence preview description for card lists..."
+                          value={newBlogSummary}
+                          onChange={(e) => setNewBlogSummary(e.target.value)}
+                          className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white placeholder:text-white/20"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Article Content *</label>
+                        <textarea
+                          required
+                          rows={10}
+                          placeholder="Write your article content here...&#10;&#10;You can use '## Header' for main titles, '### Subheader' for section titles, and listing items with dashes if needed."
+                          value={newBlogContent}
+                          onChange={(e) => setNewBlogContent(e.target.value)}
+                          className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3.5 py-2 text-xs focus:outline-none transition-all text-white font-sans leading-relaxed placeholder:text-white/20"
+                        ></textarea>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">Cover Photo URL *</label>
+                        <input
+                          type="text"
+                          required
+                          value={newBlogImage}
+                          onChange={(e) => setNewBlogImage(e.target.value)}
+                          placeholder="Provide custom image link..."
+                          className="w-[#070b13] w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white placeholder:text-white/18"
+                        />
+                        
+                        {/* Preset Cover Selections */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] uppercase text-white/30 block font-bold font-mono">Choose an image style:</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: "Hardware Workspace (Tech)", url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80" },
+                              { label: "Analytics Dashboard (Business)", url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80" },
+                              { label: "Brain Neural Nodes (AI)", url: "https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80" },
+                              { label: "Design Workspace (Marketing)", url: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80" }
+                            ].map((preset, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => setNewBlogImage(preset.url)}
+                                className={`text-[9px] font-semibold border rounded px-2 py-1 transition-all uppercase cursor-pointer ${
+                                  newBlogImage === preset.url
+                                    ? "bg-cyan-accent/20 text-cyan-accent border-cyan-accent"
+                                    : "bg-white/5 text-white/50 border-white/5 hover:bg-white/10"
+                                }`}
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-white/50 block font-bold">SEO Tags (comma-separated)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Leads Generation, AI APIs, React Node"
+                          value={newBlogTags}
+                          onChange={(e) => setNewBlogTags(e.target.value)}
+                          className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-3 py-2 text-xs focus:outline-none transition-all text-white placeholder:text-white/20"
+                        />
+                      </div>
+
+                      {blogMsg && (
+                        <div className={`p-3 text-xs rounded-xl border font-bold font-mono animate-pulse ${
+                          blogMsg.includes("⚠️") 
+                            ? "bg-red-500/10 border-red-500/30 text-red-400" 
+                            : "bg-green-500/10 border-green-500/30 text-green-400"
+                        }`}>
+                          {blogMsg}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        className="w-full py-3 bg-gradient-to-r from-primary to-cyan-accent hover:opacity-90 text-white font-bold rounded-xl text-xs uppercase tracking-widest transition-all shadow-md cursor-pointer flex items-center justify-center space-x-1.5"
+                      >
+                        <Send className="w-3.5 h-3.5 shrink-0" />
+                        <span>Publish Article</span>
+                      </button>
+                    </form>
+ 
+                    {/* Column 2: Live publication database layout (cols 5) */}
+                    <div className="lg:col-span-5 space-y-4">
+                      
+                      {/* Interactive Previewer Card */}
+                      <div className="bg-[#070b13] border border-white/10 rounded-2xl p-5 space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-white/40 font-mono text-left">Live Cover Preview</h4>
+                        <div className="border border-white/5 rounded-xl overflow-hidden bg-[#0A0D15]">
+                          <div className="aspect-video relative bg-slate-900 border-b border-white/5">
+                            <img
+                              src={newBlogImage || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80"}
+                              alt="Live cover URL"
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                            <span className="absolute top-3 left-3 bg-primary text-white text-[9px] font-mono font-black border border-primary/25 rounded-md px-2 py-0.5 uppercase tracking-wider">
+                              Preview
+                            </span>
+                          </div>
+ 
+                          <div className="p-4 text-left space-y-2">
+                            <h3 className="text-xs font-bold text-white leading-snug line-clamp-2">
+                              {newBlogTitle || "Untitled Draft Title Publication Placeholder"}
+                            </h3>
+                            <p className="text-white/40 text-[10px] leading-relaxed line-clamp-2">
+                              {newBlogSummary || "Provide teaser text descriptors above to preview the customized card output summary blocks here..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+ 
+                      {/* Published list table panel */}
+                      <div className="bg-[#070b13] border border-white/10 rounded-2xl p-5 space-y-3 max-h-[360px] overflow-y-auto">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-[#a1a1aa] font-mono text-left">Articles List</h4>
+                        
+                        {blogs.length === 0 ? (
+                          <div className="text-center py-8 text-white/35 text-xs font-mono">
+                            No articles published yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5">
+                            {blogs.map((post) => (
+                              <div
+                                key={post.id}
+                                className="p-3 bg-[#0B0F17] hover:bg-white/[0.01] border border-white/5 rounded-xl flex items-center justify-between gap-3 text-left"
+                              >
+                                <div className="space-y-1 overflow-hidden">
+                                  <h5 className="text-xs font-bold text-white truncate pr-2">{post.title}</h5>
+                                  <div className="flex items-center text-[9px] font-mono text-white/45 gap-3.5 flex-wrap">
+                                    <span className="text-cyan-accent bg-cyan-accent/5 px-1 rounded">{post.category}</span>
+                                    <span>Views: <strong className="text-white font-semibold">{post.views}</strong></span>
+                                    <span>Date: {post.date}</span>
+                                  </div>
+                                </div>
+ 
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBlog(post.id)}
+                                  className="w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/15 hover:border-red-500 text-red-400 flex items-center justify-center transition-all cursor-pointer shrink-0"
+                                  title="Delete article"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  </div>
                 </div>
               )}
 

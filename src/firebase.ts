@@ -1,20 +1,39 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
-import firebaseConfig from "../firebase-applet-config.json";
 
-// Read from client-side Vite environment variables with robust fallback to config JSON
-const metaEnv = (import.meta as any).env || {};
+// Read from client-side Vite environment variables exclusively safely casted for TS
+const env = (import.meta as any).env || {};
 const config = {
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId || "driver-first-4a302",
-  appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId || "1:590031557700:web:3b69b0a6cb29535a92d811",
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey || "AIzaSyBfGQZ3qVCjPhcTUcOpa0feTbTFxBVgMgI",
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain || "driver-first-4a302.firebaseapp.com",
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket || "driver-first-4a302.firebasestorage.app",
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId || "590031557700",
+  apiKey: env.VITE_FIREBASE_API_KEY,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(config);
-export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || "(default)");
+// Check if we have minimum requirements to initialize Firebase.
+// During build environments (like Vercel) where env files are not fully populated,
+// mock values are supplied to prevent the compiler from crashing during static analysis or builds.
+const hasFirebaseConfig = !!(config.apiKey && config.projectId && config.appId);
+
+if (!hasFirebaseConfig) {
+  console.warn("Vite Firebase environment variables are missing! " +
+               "Please define VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, " +
+               "and VITE_FIREBASE_APP_ID in your configuration.");
+}
+
+const app = initializeApp({
+  apiKey: config.apiKey || "mock-api-key-for-vercel-build",
+  authDomain: config.authDomain || "mock-auth-domain-for-vercel-build",
+  projectId: config.projectId || "mock-project-id-for-vercel-build",
+  storageBucket: config.storageBucket || "mock-storage-bucket-for-vercel-build",
+  messagingSenderId: config.messagingSenderId || "mock-sender-id-for-vercel-build",
+  appId: config.appId || "mock-app-id-for-vercel-build",
+});
+
+// Connect to the default Firestore database
+export const db = getFirestore(app);
 
 export enum OperationType {
   CREATE = "create",
@@ -62,6 +81,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Connection check validation logic
 async function testConnection() {
+  if (!hasFirebaseConfig) return;
   try {
     await getDocFromServer(doc(db, "test", "connection"));
   } catch (error) {
