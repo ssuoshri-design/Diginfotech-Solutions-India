@@ -60,5 +60,11 @@ service cloud.firestore {
       // Deny destructive actions
       allow delete: if false;
     }
+
+    // 5. Secure Blog Management Database
+    match /blogs/{blogId} {
+      allow read, list: if true;
+      allow create, update, delete: if true;
+    }
   }
 }

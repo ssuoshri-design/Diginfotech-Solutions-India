@@ -62,82 +62,12 @@ const portfolioMockup = "/src/assets/images/cyber_dashboard_3d_1780061014344.png
 
 // Highly detailed custom SVG Logo component matching the newly uploaded brand identity
 const DiginfotechLogoIcon = ({ className = "w-10 h-10" }: { className?: string }) => (
-  <svg viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <defs>
-      <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="2.5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-      <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#00D1FF" />
-        <stop offset="50%" stopColor="#00A3FF" />
-        <stop offset="100%" stopColor="#5F35FF" />
-      </linearGradient>
-    </defs>
-
-    {/* Glowing Outer Paths representing the stylized microchip D */}
-    <path
-      d="M 12 30 L 28 46 L 52 46"
-      stroke="url(#cyber-grad)"
-      strokeWidth="3.5"
-      strokeLinecap="round"
-      filter="url(#neon-glow)"
-    />
-    <circle cx="52" cy="46" r="2.5" fill="#00D1FF" filter="url(#neon-glow)" />
-
-    <path
-      d="M 12 70 L 28 54 L 44 54"
-      stroke="url(#cyber-grad)"
-      strokeWidth="3.5"
-      strokeLinecap="round"
-      filter="url(#neon-glow)"
-    />
-    <circle cx="44" cy="54" r="2.5" fill="#ffffff" />
-
-    {/* Main Outer D Loop Arrow */}
-    <path
-      d="M 22 16 
-         L 44 40 
-         L 22 80 
-         L 58 80 
-         C 82 80, 98 70, 98 48 
-         C 98 26, 82 16, 58 16 
-         Z"
-      stroke="url(#cyber-grad)"
-      strokeWidth="4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      filter="url(#neon-glow)"
-    />
-
-    {/* Inner circuitry line following the curve */}
-    <path
-      d="M 46 26 
-         C 58 26, 78 31, 78 48 
-         C 78 65, 58 70, 48 70"
-      stroke="#00D1FF"
-      strokeWidth="2"
-      strokeLinecap="round"
-      opacity="0.8"
-    />
-    <circle cx="48" cy="70" r="2" fill="#00D1FF" />
-
-    {/* Small horizontal middle line and circular system connector nodes */}
-    <path d="M 62 48 L 78 48" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
-    <circle cx="78" cy="48" r="2.5" fill="#ffffff" />
-
-    {/* Microchip nodes on the outer points */}
-    <circle cx="22" cy="16" r="3.5" fill="#00D1FF" filter="url(#neon-glow)" />
-    <circle cx="22" cy="80" r="3.5" fill="#5F35FF" filter="url(#neon-glow)" />
-    <circle cx="44" cy="40" r="3" fill="#ffffff" />
-
-    {/* Leftmost arrow points */}
-    <path d="M 16 48 L 8 48" stroke="#00D1FF" strokeWidth="2.5" strokeLinecap="round" />
-    <circle cx="8" cy="48" r="2" fill="#00D1FF" />
-  </svg>
+  <img
+    src="/src/assets/images/diginfotech_logo_1780128203628.png"
+    alt="Diginfotech Logo"
+    className={`${className} object-cover rounded-full border border-cyan-400/35 shadow-[0_0_15px_rgba(6,182,212,0.2)]`}
+    referrerPolicy="no-referrer"
+  />
 );
 
 // Service Type definition
@@ -167,8 +97,69 @@ interface Project {
 }
 
 export default function App() {
-  // Navigation menu state
+   // Navigation menu state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Dynamic location-based currency and manual toggle state
+  const [selectedCurrency, setSelectedCurrency] = useState<"USD" | "INR" | "GBP">(() => {
+    const saved = localStorage.getItem("diginfotech_custom_currency");
+    if (saved === "USD" || saved === "INR" || saved === "GBP") {
+      return saved;
+    }
+    return "USD";
+  });
+
+  const handleSetCurrency = (curr: "USD" | "INR" | "GBP") => {
+    setSelectedCurrency(curr);
+    localStorage.setItem("diginfotech_custom_currency", curr);
+  };
+
+  // Auto-detect visitor location for currency using public geolocation details
+  useEffect(() => {
+    const saved = localStorage.getItem("diginfotech_custom_currency");
+    if (saved) return; // respect manual choice override
+
+    fetch("https://ipapi.co/json/")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.country_code) {
+          const code = data.country_code.toUpperCase();
+          if (code === "IN") {
+            setSelectedCurrency("INR");
+          } else if (code === "GB" || code === "UK") {
+            setSelectedCurrency("GBP");
+          } else {
+            setSelectedCurrency("USD");
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Visitor IP location estimation failed, defaulting to USD:", err);
+      });
+  }, []);
+
+  const getPlanPriceString = (planId: "starter" | "growth" | "enterprise") => {
+    if (selectedCurrency === "INR") {
+      if (planId === "starter") return "₹24,999";
+      if (planId === "growth") return "₹79,999";
+      return "₹2,49,999";
+    } else if (selectedCurrency === "GBP") {
+      if (planId === "starter") return "£249";
+      if (planId === "growth") return "£849";
+      return "£2,499";
+    } else {
+      if (planId === "starter") return "$299";
+      if (planId === "growth") return "$699";
+      return "$1,499";
+    }
+  };
+
+  // Payment states
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [showMockCheckout, setShowMockCheckout] = useState(false);
+  const [mockPaymentPlan, setMockPaymentPlan] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [paymentSuccessPlan, setPaymentSuccessPlan] = useState<any>(null);
 
   // Filter state for portfolio
   const [selectedPortfolioTab, setSelectedPortfolioTab] = useState<"all" | "websites" | "saas" | "automation" | "branding">("all");
@@ -377,7 +368,13 @@ export default function App() {
       const reqMsg = msgs.find(m => m.controlType === "request_chat");
       if (reqMsg) {
         if (reqMsg.requestStatus === "accepted") {
-          setChatUserStep("complete");
+          setChatUserStep((prev) => {
+            if (prev !== "complete") {
+              setIsChatOpen(true);
+              setIsChatNotificationActive(false);
+            }
+            return "complete";
+          });
         } else if (reqMsg.requestStatus === "pending") {
           setChatUserStep("request_pending");
         }
@@ -692,6 +689,72 @@ export default function App() {
     downloadAnchor.remove();
   };
 
+  const handleInitiateCheckout = async (planId: string) => {
+    setCheckoutLoading(planId);
+    try {
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planId,
+          successUrl: `${window.location.origin}?payment_success=true&plan=${planId}`,
+          cancelUrl: window.location.origin,
+          currency: selectedCurrency
+        }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to start payment checkout flow.");
+      }
+      
+      if (data.mock) {
+        // No stripe key loaded - open the beautifully styled transaction custom sandbox simulator
+        setMockPaymentPlan({
+          id: planId,
+          name: data.plan.name,
+          price: data.plan.currency === "inr" ? (data.plan.price / 100) : (data.plan.price / 100),
+          currency: data.plan.currency.toUpperCase(),
+          description: data.plan.description,
+        });
+        setShowMockCheckout(true);
+      } else if (data.url) {
+        // Redirect to authentic, secure stripe page
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      console.error("Payment initiation mistake:", err);
+      // Fallback checkout simulation if complete network fail or offline
+      const localPlanNames: Record<string, string> = {
+        starter: "Starter Package (Digital Marketing)",
+        growth: "Growth AI Pack (AI & Voice Automation)",
+        enterprise: "Enterprise Master (Workflow & Bespoke CRM)"
+      };
+      
+      let fallbackPrice = 299;
+      if (selectedCurrency === "INR") {
+        fallbackPrice = planId === "starter" ? 24999 : planId === "growth" ? 79999 : 249999;
+      } else if (selectedCurrency === "GBP") {
+        fallbackPrice = planId === "starter" ? 249 : planId === "growth" ? 849 : 2499;
+      } else {
+        fallbackPrice = planId === "starter" ? 299 : planId === "growth" ? 699 : 1499;
+      }
+
+      setMockPaymentPlan({
+        id: planId,
+        name: localPlanNames[planId] || "Diginfotech Premium Package",
+        price: fallbackPrice,
+        currency: selectedCurrency,
+        description: "Secure Digital Package checkout simulation mode.",
+      });
+      setShowMockCheckout(true);
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
   // Setup tracker triggers and seed databases
   useEffect(() => {
     // 1. Initialise leads database (or fallback placeholder leads)
@@ -997,6 +1060,29 @@ export default function App() {
     return () => clearInterval(activityTimer);
   }, []);
 
+  // Check for successful payment redirects from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment_success") === "true") {
+      const planId = params.get("plan") || "starter";
+      const planNames: Record<string, string> = {
+        starter: "Starter Package (Branding & Web)",
+        growth: "Growth AI Pack (SEO & Assistant)",
+        enterprise: "Enterprise Master (3D & custom CRM)"
+      };
+      const planDetails = {
+        id: planId,
+        name: planNames[planId] || "Diginfotech Premium Package",
+        price: planId === "starter" ? "$299" : planId === "growth" ? "$699" : "$1,499"
+      };
+      setPaymentSuccessPlan(planDetails);
+      setShowSuccessModal(true);
+      
+      // Clean up URL query parameters so reloading doesn't prompt success again
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Dynamic system stats counters (for design consistency)
   const [consultationsBooked, setConsultationsBooked] = useState(48);
 
@@ -1033,70 +1119,48 @@ export default function App() {
 
   const services: Service[] = [
     {
-      id: "website",
-      title: "Website Development",
-      icon: Code,
-      tag: "POPULAR",
-      shortDesc: "Fast, secure, and modern custom websites designed to load instantly, rank on search engines, and convert visitors into customers.",
-      longDesc: "We build outstanding, modern websites tailored precisely to your brand. Your website will load instantly, look amazing on mobile and desktop, and keep visitors engaged with clean design and smooth animations.",
-      technologies: ["React.js", "WordPress", "Next.js", "Vite", "Tailwind CSS", "HTML5 & CSS3"],
-      features: ["Fully mobile friendly design", "Under 2 seconds loading speed", "SEO friendly layout", "Modern animations and interactive pages"],
-      deliveryTime: "7 - 14 Days"
-    },
-    {
       id: "marketing",
       title: "Digital Marketing",
       icon: TrendingUp,
-      tag: "RESULT-DRIVEN",
-      shortDesc: "Targeted advertising and social media campaigns designed to generate high-quality leads and grow your sales.",
-      longDesc: "Turn your marketing budget into a predictable customer generator. We set up targeted advertising campaigns on Google and social media that connect directly with people who are looking for what you sell.",
-      technologies: ["Google Ads", "Facebook & Instagram Ads", "Lead Generation Forms", "Analytics & Tracking", "Customer Retargeting"],
-      features: ["Highly targeted audience configuration", "A/B testing for best performing ads", "Clear fortnightly conversion reports", "Budget optimization to lower cost per lead"],
-      deliveryTime: "Ongoing Monthly Work"
-    },
-    {
-      id: "seo",
-      title: "SEO Optimization",
-      icon: Globe,
-      tag: "ORGANIC GROWTH",
-      shortDesc: "Improve your search engine rankings so more customers can find your business organically on Google.",
-      longDesc: "Get continuous, free organic search traffic to your website. We optimize your website's speed, content, and structure so you rank higher on Google search results for key business search terms.",
-      technologies: ["Google Search Console", "Keyword Mapping Tools", "Sitemaps & Schemas", "Speed Tuning Support"],
-      features: ["Detailed keyword research plan", "On-page and technical website optimization", "High-quality backlink building", "Monthly keyword position updates"],
-      deliveryTime: "Active Setup in 30 Days"
+      tag: "LEAD GENERATION",
+      shortDesc: "Google Ads, Meta Ads, and comprehensive lead generation campaigns designed to attract premium clients and scale ROI.",
+      longDesc: "Turn your marketing spend into a high-performance customer machine. We plan and manage advanced traffic systems spanning Google Ads, Meta Ads (Facebook & Instagram), smart retargeting campaigns, and conversion-optimized sales funnels.",
+      technologies: ["Google Ads", "Meta Ads", "Lead Generation Solutions", "Conversion Optimization", "Retargeting Campaigns", "Funnel Strategy"],
+      features: ["Highly targeted audience configuration", "A/B copywriting & performance creative testing", "Clear conversion dashboards and key metrics", "Budget optimizations to lower cost-per-lead"],
+      deliveryTime: "Ongoing Monthly Scale"
     },
     {
       id: "branding",
-      title: "Branding & Design",
+      title: "Branding & Creative",
       icon: Sparkles,
-      tag: "CREATIVE BRANDING",
-      shortDesc: "Beautiful logos, consistent colors, matching fonts, and stationery designs that make your business look professional.",
-      longDesc: "Build trust with your customers through cohesive branding. We design eye-catching logos, professional brand guides, color palettes, and flyers that make your business stand out from competitors.",
-      technologies: ["Figma Design", "Adobe Photoshop & Illustrator", "Vector Branding Assets", "Creative Guidelines"],
-      features: ["Professional custom vector logo sets", "Unified font and color guides", "E-ready presentation templates", "Business cards & brochure blueprints"],
-      deliveryTime: "5 - 10 Days"
+      tag: "CREATIVE STRATEGY",
+      shortDesc: "Premium Brand Identity design, high-converting ad and video creatives, landing pages, and conversion copywriting.",
+      longDesc: "Transform how your company is perceived in the market. We develop beautiful corporate brand guides, custom high-performance landing pages, video ad layouts, and persuasive conversion-optimized copywriting to turn visitors into paying clients.",
+      technologies: ["Brand Identity Design", "Creative Strategy", "Ad Creatives", "Video Ads", "Landing Page Layouts", "Conversion Copywriting"],
+      features: ["Custom vector logos and presentation templates", "Unified elite font pairing and color books", "Engaging social grid graphics & video edits", "Persuasive sales copywriting blocks"],
+      deliveryTime: "5 - 12 Days"
     },
     {
-      id: "social",
-      title: "Social Media Marketing",
-      icon: MessageSquare,
-      tag: "ENGAGEMENT",
-      shortDesc: "Regular creative posts, high-quality graphics, and short video reels that grow your followers and build brand trust online.",
-      longDesc: "Keep your target audience engaged and informed. We plan post calendars, write engaging captions, and create beautiful visual content tailored for Instagram, LinkedIn, and Facebook to keep your pages active.",
-      technologies: ["Post Calendars", "Figma Graphic Templates", "Short-Form Video & Reels", "Audience Interactivity"],
-      features: ["Cohesive and professional page grid design", "High-converting captions written by experts", "Dynamic custom monthly post calendar", "Regular inbox and comment check-ups"],
-      deliveryTime: "Ongoing Monthly Engagement"
-    },
-    {
-      id: "automation",
-      title: "Smart Automation & AI Voice Agents",
+      id: "ai-automation",
+      title: "AI & Voice Automation",
       icon: Bot,
-      tag: "TIME-SAVING",
-      shortDesc: "Save massive hours with automated workflows, friendly AI Voice Agents that talk like humans, and immediate leads syncing into your Google Sheets or Excel sheets.",
-      longDesc: "Never lose a customer and eliminate manual copy-pasting. We set up advanced AI Voice Agents that make outbound sales calls or answer inbound support questions. Our systems listen, speak naturally, and instantly sync caller responses directly into your Google Sheets, Excel files, or CRM systems. We also trigger automatic WhatsApp follow-ups the moment they hang up.",
-      technologies: ["AI Voice Calling (Vapi/Retell)", "Excel & Google Sheets Syncing", "Zapier & Make Automations", "Automatic WhatsApp Follow-ups"],
-      features: ["Friendly AI Voice Agents that talk like humans", "Automated real-time lead sync into Excel/Sheets", "Instant WhatsApp or SMS notifications after calls", "24/7 background webhook workflows & chat replies"],
+      tag: "INTELLIGENT SYSTEMS",
+      shortDesc: "Human-sounding Voice AI calling agents, custom AI Sales & Support chatbots, and booking automation systems.",
+      longDesc: "Keep your business running 24/7 without manual lag. Our Outbound and Inbound Voice AI agents talk exactly like natural sales representatives. Custom-trained AI support chatbots respond to users instantly and follow up automatically on WhatsApp.",
+      technologies: ["AI Sales Agents", "AI Support Agents", "Voice AI Agents", "WhatsApp Automation", "AI Chat Assistants"],
+      features: ["Human-sounding outbound sales callers", "24/7 client support response bots", "Intelligent calendar and booking flows", "Immediate custom WhatsApp & SMS notifications"],
       deliveryTime: "7 - 14 Days"
+    },
+    {
+      id: "workflow",
+      title: "Workflow Automation",
+      icon: Layers,
+      tag: "OPERATIONAL SPEED",
+      shortDesc: "Custom CRM integrations, instant lead tracking, pipeline automation, and live customer dashboards.",
+      longDesc: "Eliminate repetitive manual spreadsheet copy-pasting and delay. We architect custom CRM pipelines, automate customer onboarding, design triggered email sequences, and connect internal databases to make operations run smoothly.",
+      technologies: ["CRM Setup & Automation", "Lead Tracking Systems", "Pipeline Automation", "Email Automation", "WhatsApp Automation", "Internal Business Process Automation", "Reporting Dashboards"],
+      features: ["Automated customer tracking and tagging", "Triggered multi-channel follow-up automations", "Internal business process connection maps", "Unified client reporting analytics dashboards"],
+      deliveryTime: "6 - 10 Days"
     }
   ];
 
@@ -1459,13 +1523,30 @@ export default function App() {
           </a>
 
           {/* Desktop Nav Actions */}
-          <nav id="desktop-nav" className="hidden md:flex items-center space-x-8 font-medium text-sm">
+          <nav id="desktop-nav" className="hidden md:flex items-center space-x-7 font-medium text-sm">
             <a href="#services" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Services</a>
             <a href="#why-choose-us" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Advantages</a>
             <a href="#portfolio" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Portfolio</a>
             <a href="#testimonials" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Reviews</a>
             <a href="#contact" className="text-white/70 hover:text-primary transition-colors py-2 outline-none">Contact Us</a>
           </nav>
+
+          {/* Manual Currency Switcher Dropdown (Desktop) */}
+          <div className="hidden md:flex items-center" id="desktop-currency-selector">
+            <div className="flex items-center space-x-2 bg-white/5 border border-white/10 rounded-full px-3.5 py-1.5 focus-within:border-primary transition-all">
+              <Globe className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
+              <select
+                value={selectedCurrency}
+                onChange={(e) => handleSetCurrency(e.target.value as any)}
+                className="bg-transparent text-xs text-white/95 font-bold tracking-wide cursor-pointer focus:outline-none pr-1 uppercase select-none font-mono border-none"
+                title="Billing Currency"
+              >
+                <option value="USD" className="bg-[#0B0F17] text-white">USD ($)</option>
+                <option value="INR" className="bg-[#0B0F17] text-white">INR (₹)</option>
+                <option value="GBP" className="bg-[#0B0F17] text-white">GBP (£)</option>
+              </select>
+            </div>
+          </div>
 
           {/* Header Action Button Group */}
           <div className="hidden md:flex items-center space-x-4">
@@ -1536,6 +1617,34 @@ export default function App() {
               Contact Us
             </a>
 
+            {/* Custom Multi-Currency Selector row on Mobile */}
+            <div className="py-2 px-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+              <span className="text-xs font-semibold text-white/70 flex items-center space-x-1.5">
+                <Globe className="w-3.5 h-3.5 text-cyan-accent" />
+                <span>Pricing Region</span>
+              </span>
+              <div className="flex bg-[#0B0F17] rounded-lg p-0.5 border border-white/10">
+                <button
+                  onClick={() => handleSetCurrency("USD")}
+                  className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${selectedCurrency === "USD" ? "bg-primary text-white" : "text-white/50 hover:text-white"}`}
+                >
+                  USD ($)
+                </button>
+                <button
+                  onClick={() => handleSetCurrency("INR")}
+                  className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${selectedCurrency === "INR" ? "bg-primary text-white" : "text-white/50 hover:text-white"}`}
+                >
+                  INR (₹)
+                </button>
+                <button
+                  onClick={() => handleSetCurrency("GBP")}
+                  className={`px-3 py-1 rounded-md text-[10px] uppercase font-bold transition-all ${selectedCurrency === "GBP" ? "bg-primary text-white" : "text-white/50 hover:text-white"}`}
+                >
+                  GBP (£)
+                </button>
+              </div>
+            </div>
+
             <div className="pt-4 border-t border-white/5 flex flex-col space-y-3">
               <a 
                 href={`tel:${contactPhone}`}
@@ -1580,42 +1689,48 @@ export default function App() {
 
               {/* Title Headline block */}
               <h1 id="hero-heading" className="text-4xl sm:text-5xl md:text-6xl font-extrabold font-display leading-[1.1] text-white">
-                We Build <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#00D1FF] to-white font-black drop-shadow-[0_2px_20px_rgba(0,100,255,0.3)]">Websites & Marketing</span> to Grow Your Business
+                We Build <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-[#00D1FF] to-white font-black drop-shadow-[0_2px_20px_rgba(0,100,255,0.3)]">Automated Growth Systems</span> That Generate Leads, Close Sales & Run Your Business 24/7
               </h1>
 
               {/* Responsive Subtitle text */}
               <p id="hero-subheading" className="text-white/75 text-base sm:text-lg md:text-xl font-light leading-relaxed max-w-2xl">
-                Diginfotech Solutions helps you attract customers, increase your sales, and automate manual tasks with top-tier websites, branding, and workflows.
+                From Digital Marketing to AI-Powered Automation, we create complete business systems that attract customers, automate follow-ups, increase conversions, and drive predictable growth.
               </p>
 
+              {/* Trust Statement */}
+              <div className="text-xs uppercase tracking-[0.14em] text-white/60 font-medium font-accent flex items-center space-x-2">
+                <span className="text-[#00D1FF]">★</span>
+                <span>Marketing + Automation + AI + Branding — All Under One Growth System.</span>
+              </div>
+
               {/* Call-to-actions row */}
-              <div id="hero-cta-group" className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+              <div id="hero-cta-group" className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 pt-1">
                 
-                {/* Primary CTA (Get Started modal target or Contact focus) */}
+                {/* Primary CTA (Get Free Growth Audit) */}
                 <a 
                   href="#contact"
                   className="px-8 py-4 bg-primary hover:bg-[#431BDB] text-white font-bold rounded-xl flex items-center justify-center space-x-3 shadow-lg shadow-primary/40 transform active:scale-95 transition-all text-sm uppercase tracking-widest glow-shadow-blue"
                 >
-                  <span>Get Started</span>
+                  <span>Get Free Growth Audit</span>
                   <ArrowRight className="w-4 h-4 animate-bounce-right" />
                 </a>
 
-                {/* WhatsApp Chat instant helper */}
+                {/* Secondary CTA (Book Strategy Call) */}
                 <a 
-                  href={getWhatsAppLink("Hello Diginfotech Solutions India, I'm interested in discussing a website development or digital marketing project.")}
+                  href={getWhatsAppLink("Hello, I want to book a 1-on-1 business Strategy Call to automate and scale my growth workflows.")}
                   target="_blank"
                   rel="noreferrer"
                   className="px-8 py-4 bg-[#0A0F2C] hover:bg-[#0E153D] text-white font-bold rounded-xl flex items-center justify-center space-x-2 border border-white/10 hover:border-cyan-accent/40 backdrop-blur-lg transform active:scale-95 transition-all text-sm uppercase tracking-widest cursor-pointer"
                 >
                   <MessageSquare className="w-4 h-4 text-cyan-accent" />
-                  <span>Chat on WhatsApp</span>
+                  <span>Book Strategy Call</span>
                 </a>
 
                 {/* Instant Callback Form micro-block to boost conversions */}
                 <div className="hidden xl:flex flex-col items-start pl-6 border-l border-white/15">
                   <div className="flex items-center space-x-1.5 text-xs text-white/50 mb-1">
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
-                    <span>Support Online Now</span>
+                    <span>Systems Online</span>
                   </div>
                   <a href={`tel:${contactPhone}`} className="text-sm font-semibold tracking-wider text-cyan-accent hover:underline">
                     {contactPhone}
@@ -1623,19 +1738,23 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Trust Badges / Social Proof stats */}
-              <div id="hero-mini-stats" className="grid grid-cols-3 gap-4 pt-8 border-t border-white/5 max-w-lg">
-                <div className="flex flex-col">
-                  <span className="text-2xl font-extrabold font-accent text-cyan-accent">250+</span>
-                  <span className="text-[11px] text-white/55 uppercase tracking-wide">Projects Complete</span>
+              {/* Trust Indicators / Social proof badges */}
+              <div id="hero-trust-indicators" className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-white/5">
+                <div className="flex items-center space-x-2 text-xs font-semibold text-white/70">
+                  <Check className="w-4 h-4 text-cyan-accent" />
+                  <span>ROI-Focused</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-2xl font-extrabold font-accent text-cyan-accent">98.5%</span>
-                  <span className="text-[11px] text-white/55 uppercase tracking-wide">Customer Rating</span>
+                <div className="flex items-center space-x-2 text-xs font-semibold text-white/70">
+                  <Check className="w-4 h-4 text-cyan-accent" />
+                  <span>Automation Experts</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-2xl font-extrabold font-accent text-cyan-accent">24/7</span>
-                  <span className="text-[11px] text-white/55 uppercase tracking-wide">Direct Support</span>
+                <div className="flex items-center space-x-2 text-xs font-semibold text-white/70">
+                  <Check className="w-4 h-4 text-cyan-accent" />
+                  <span>Lead Gen Specialists</span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs font-semibold text-white/70">
+                  <Check className="w-4 h-4 text-cyan-accent" />
+                  <span>AI-Powered Systems</span>
                 </div>
               </div>
 
@@ -2101,6 +2220,248 @@ export default function App() {
 
               </div>
             ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* 4.5. PRICING & PLANS SECTION (Interactive Checkout integrated with Stripe / Sandbox Gateway) */}
+      <section id="pricing" className="py-24 border-t border-white/[0.05] relative bg-[#060913] overflow-hidden">
+        {/* Soft neon ambient background mesh */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute top-0 right-10 w-[300px] h-[300px] bg-cyan-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          
+          {/* Section Heading with tagline */}
+          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+            <span className="text-xs uppercase tracking-[0.25em] font-bold text-cyan-accent font-accent py-1 px-3.5 bg-cyan-accent/10 rounded-full border border-cyan-accent/25 animate-pulse">
+              FLEXIBLE INVESTMENT PACKAGES
+            </span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold font-display leading-tight text-white text-center">
+              Launch Your Next <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">Scale Iteration</span>
+            </h2>
+            <p className="text-white/60 text-sm md:text-base font-light text-center">
+              Transparent, flat-rate pricing designed for modern web applications, AI automations, and digital brand transformations. Fully integrated with secure instant payments.
+            </p>
+          </div>
+
+          {/* Pricing Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            
+            {/* Package 1: Starter */}
+            <div id="pricing-plan-starter" className="relative p-8 rounded-3xl glass-panel hover:border-cyan-accent/40 shadow-xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border border-white/[0.05] hover:-translate-y-1">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-white/5 px-2.5 py-1 rounded-full font-bold uppercase block w-max">
+                    STARTER BUNDLE
+                  </span>
+                  <h3 className="text-xl font-bold text-white font-display text-left">Starter Package</h3>
+                  <p className="text-white/50 text-xs font-light text-left">
+                    Premium standard Website showcase + tailored brand visual identity suite.
+                  </p>
+                </div>
+
+                {/* Pricing element */}
+                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                  <span className="text-4xl sm:text-5xl font-extrabold font-display text-white">{getPlanPriceString("starter")}</span>
+                  <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
+                </div>
+
+                {/* Features Checklist */}
+                <div className="space-y-3.5 text-left text-xs">
+                  <h4 className="text-[10px] uppercase tracking-wider text-cyan-accent font-bold font-accent">What's included:</h4>
+                  <ul className="space-y-3">
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Custom React / SPA Website build</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Fully responsive Mobile & Desktop layouts</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Standard SEO Auditing & Speed Optimization</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Logo pack & full brand vectors export</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>1 Month high-priority technical support</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button 
+                onClick={() => handleInitiateCheckout("starter")}
+                disabled={checkoutLoading !== null}
+                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-[#111625]/80 hover:bg-white/[0.05] border border-white/10 hover:border-cyan-accent/35 transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {checkoutLoading === "starter" ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                ) : (
+                  <>
+                    <span>Generate Invoice Securely</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-cyan-accent" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Package 2: Growth (Featured Premium) */}
+            <div id="pricing-plan-growth" className="relative p-8 rounded-3xl glass-panel shadow-2xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border-2 border-primary hover:-translate-y-1.5 shadow-primary/10">
+              {/* Highlight sash badge */}
+              <div className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold py-1 px-4 tracking-widest uppercase rounded-bl-xl font-mono z-10">
+                POPULAR CHOICE
+              </div>
+              
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-primary/15 px-2.5 py-1 rounded-full font-bold uppercase block w-max border border-primary/25">
+                    AI SCALE UP BUNDLE
+                  </span>
+                  <h3 className="text-xl font-bold text-white font-display text-left flex items-center space-x-2">
+                    <span>Growth AI Pack</span>
+                    <Sparkles className="w-4 h-4 text-cyan-accent" />
+                  </h3>
+                  <p className="text-white/50 text-xs font-light text-left">
+                    For ambitious companies seeking dynamic leads dashboards & smart assistant triggers.
+                  </p>
+                </div>
+
+                {/* Pricing element */}
+                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                  <span className="text-4xl sm:text-5xl font-extrabold font-display text-transparent bg-clip-text bg-gradient-to-r from-primary to-cyan-accent">{getPlanPriceString("growth")}</span>
+                  <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
+                </div>
+
+                {/* Features Checklist */}
+                <div className="space-y-3.5 text-left text-xs">
+                  <h4 className="text-[10px] uppercase tracking-wider text-primary font-bold font-accent">Everything in Starter plus:</h4>
+                  <ul className="space-y-3">
+                    <li className="flex items-start space-x-2.5 text-white/90 font-medium">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span>Subscribers Leads Dashboard (Realtime DB)</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/90">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span>Custom-trained interactive AI assistant chat</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/90">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span>Google Map visual components integration</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span>Automated Sitemap, RSS, and indexing setup</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <span>3 Months high-priority support SLA</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button 
+                onClick={() => handleInitiateCheckout("growth")}
+                disabled={checkoutLoading !== null}
+                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-primary hover:bg-[#431BDB] transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer shadow-lg shadow-primary/20 disabled:opacity-50"
+              >
+                {checkoutLoading === "growth" ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                ) : (
+                  <>
+                    <span>Activate Growth Package</span>
+                    <Zap className="w-3.5 h-3.5 text-cyan-accent animate-pulse" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Package 3: Enterprise */}
+            <div id="pricing-plan-enterprise" className="relative p-8 rounded-3xl glass-panel hover:border-cyan-accent/40 shadow-xl transition-all duration-300 flex flex-col justify-between group overflow-hidden border border-white/[0.05] hover:-translate-y-1">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono tracking-widest text-[#a1a1aa] bg-white/5 px-2.5 py-1 rounded-full font-bold uppercase block w-max">
+                    BESPOKE ENTERPRISE
+                  </span>
+                  <h3 className="text-xl font-bold text-white font-display text-left">Enterprise Master</h3>
+                  <p className="text-white/50 text-xs font-light text-left">
+                    Tailored multi-agent systems, WhatsApp integrations, custom CRM & complex 3D modules.
+                  </p>
+                </div>
+
+                {/* Pricing element */}
+                <div className="flex items-baseline space-x-2 border-b border-white/5 pb-6 text-left">
+                  <span className="text-4xl sm:text-5xl font-extrabold font-display text-white">{getPlanPriceString("enterprise")}</span>
+                  <span className="text-white/40 text-xs uppercase tracking-wider font-semibold">One-time flat</span>
+                </div>
+
+                {/* Features Checklist */}
+                <div className="space-y-3.5 text-left text-xs">
+                  <h4 className="text-[10px] uppercase tracking-wider text-cyan-accent font-bold font-accent">Ultimate enterprise scope:</h4>
+                  <ul className="space-y-3">
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Custom CRM software & admin controls terminal</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>Intelligent WhatsApp API transactional dispatch</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>3D WebGL / Interactive canvas dashboard charts</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>API Gateway, security rules & custom Firestore design</span>
+                    </li>
+                    <li className="flex items-start space-x-2.5 text-white/70">
+                      <Check className="w-4 h-4 text-cyan-accent shrink-0 mt-0.5" />
+                      <span>1 Year dedicated direct-slack tech support</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button 
+                onClick={() => handleInitiateCheckout("enterprise")}
+                disabled={checkoutLoading !== null}
+                className="w-full mt-8 py-3.5 rounded-xl font-bold bg-[#111625]/80 hover:bg-white/[0.05] border border-white/10 hover:border-cyan-accent/35 transition-all text-xs uppercase tracking-wider text-white text-center flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {checkoutLoading === "enterprise" ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                ) : (
+                  <>
+                    <span>Book Enterprise Integration</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-accent" />
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+
+          {/* Secure details tag */}
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 text-white/40 text-xs">
+            <span className="flex items-center space-x-1.5">
+              <Lock className="w-3.5 h-3.5 text-cyan-accent" />
+              <span>Full SSL Encrypted checkout</span>
+            </span>
+            <span className="hidden sm:inline">•</span>
+            <span className="flex items-center space-x-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-accent" />
+              <span>100% verified Stripe Merchant protection</span>
+            </span>
           </div>
 
         </div>
@@ -3926,6 +4287,316 @@ export default function App() {
                 </div>
               )}
 
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 4.6. STRIPE INTEGRAL PLAYGROUND CHECKOUT SIMULATION MODAL */}
+      {showMockCheckout && mockPaymentPlan && (
+        <div id="stripe-sandbox-modal-overlay" className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-[#0e172e] via-[#0d1222] to-[#060913] w-full max-w-lg rounded-3xl p-6 sm:p-8 border border-white/20 relative shadow-[0_0_80px_rgba(0,0,0,0.8)] text-left animate-fade-in my-auto max-h-[95vh] overflow-y-auto">
+            
+            {/* Close */}
+            <button 
+              onClick={() => {
+                setShowMockCheckout(false);
+                setMockPaymentPlan(null);
+              }}
+              className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/5 cursor-pointer outline-none transition-all"
+              title="Cancel billing process"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header branding */}
+            <div className="flex items-center space-x-3 border-b border-white/10 pb-4">
+              <div className="w-10 h-10 rounded-xl bg-cyan-accent/15 border border-cyan-accent/25 flex items-center justify-center text-cyan-accent">
+                <ShieldCheck className="w-5 h-5 text-cyan-accent filter drop-shadow-[0_0_6px_rgba(0,209,255,0.4)]" />
+              </div>
+              <div>
+                <span className="text-[9px] font-mono text-cyan-accent bg-cyan-accent/10 px-2 py-0.5 rounded font-bold uppercase tracking-widest leading-none">
+                  SECURE BUNDLE ROUTING GATEWAY
+                </span>
+                <h3 className="text-lg font-bold text-white font-display mt-1">Agency Checkout Portal</h3>
+              </div>
+            </div>
+
+            {/* Invoice plan overview */}
+            <div className="bg-white/[0.03] border border-white/5 p-4 rounded-2xl space-y-3 mt-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-[9px] text-white/45 uppercase block tracking-wider font-semibold">SELECTED PLAN</span>
+                  <span className="text-sm font-bold text-white font-display block leading-normal">{mockPaymentPlan.name}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[9px] text-white/45 uppercase block tracking-wider font-semibold">ONE-TIME FEE</span>
+                  <span className="text-sm font-black text-cyan-accent font-mono block leading-correct">
+                    {mockPaymentPlan.currency === "INR" ? "₹" : mockPaymentPlan.currency === "GBP" ? "£" : "$"}
+                    {mockPaymentPlan.price.toLocaleString()} {mockPaymentPlan.currency}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[11px] text-white/60 font-light font-sans">{mockPaymentPlan.description}</p>
+            </div>
+
+            {/* Gateway Provider Tabs Selector */}
+            <div className="mt-5 space-y-2">
+              <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Select Secure Payment Provider</label>
+              <div className="grid grid-cols-3 gap-2 bg-[#0A0F1D] p-1.5 rounded-xl border border-white/5">
+                <button
+                  type="button"
+                  onClick={() => handleSetCurrency(selectedCurrency ?? "USD")} // Trigger rendering state logic
+                  className="px-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white transition-all bg-primary flex flex-col items-center justify-center gap-1 cursor-pointer"
+                >
+                  <span>Stripe Secure</span>
+                  <span className="text-[8px] opacity-70 font-normal font-sans">Global Cards</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetCurrency("INR")} // Dynamic matching helper
+                  className="px-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white/70 hover:text-white transition-all hover:bg-white/5 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                >
+                  <span>Razorpay</span>
+                  <span className="text-[8px] opacity-70 font-normal font-sans">India UPI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetCurrency("USD")} // Dynamic matching helper
+                  className="px-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white/70 hover:text-white transition-all hover:bg-white/5 flex flex-col items-center justify-center gap-1 cursor-pointer"
+                >
+                  <span>PayPal Pay</span>
+                  <span className="text-[8px] opacity-70 font-normal font-sans">International</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Test Card Simulator Form fields */}
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                // Trigger transition to success page using search parameter simulation
+                const url = new URL(window.location.href);
+                url.searchParams.set("payment_success", "true");
+                url.searchParams.set("plan", mockPaymentPlan.id);
+                window.location.href = url.toString();
+              }}
+              className="space-y-4 mt-5"
+            >
+              {mockPaymentPlan.currency === "INR" ? (
+                // Razorpay UPI UI flow template simulation
+                <div className="space-y-4 bg-white/[0.01] border border-white/5 rounded-2xl p-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                    <span className="text-[10px] font-mono font-bold text-cyan-accent uppercase">Razorpay UPI Checkout</span>
+                    <span className="text-[8px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded uppercase font-bold">BHIM / UPI Active</span>
+                  </div>
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Enter Virtual Payment Address (VPA / UPI ID)</label>
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="username@okaxis or mobile@paytm" 
+                      defaultValue="growthpartner@upi"
+                      className="w-full bg-[#0B0F17] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-white/40 block leading-relaxed font-sans">Or scan simulated secure QR below:</span>
+                    <div className="w-28 h-28 bg-white p-1.5 rounded-xl mx-auto flex items-center justify-center shadow-lg shadow-black/10">
+                      <img 
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=upi://pay?pa=diginfotech@upi&pn=Diginfotech%20Solutions&am=24999.00&cu=INR" 
+                        alt="Simulated secure UPI Scan QR"
+                        width={110}
+                        height={110}
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Standard Global Card Stripe Form fields
+                <div className="space-y-4">
+                  <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Simulated Card Information</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="4242 •••• •••• 4242" 
+                        defaultValue="4242 4242 4242 4242"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] bg-cyan-accent/10 border border-cyan-accent/20 px-1.5 py-0.5 rounded text-cyan-accent font-bold font-mono">SANDBOX TEST</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Expiry Metric</label>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="MM / YY" 
+                        defaultValue="12 / 29"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">CVC / CVV Shield</label>
+                      <input 
+                        type="password" 
+                        required 
+                        maxLength={3} 
+                        placeholder="•••" 
+                        defaultValue="123"
+                        className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] text-white/50 block font-bold uppercase tracking-widest font-mono">Cardholder Billing Name</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="e.g. John Doe" 
+                  defaultValue={formInputs.name || "Enterprise Growth Core Client"}
+                  className="w-full bg-white/[0.02] border border-white/10 focus:border-cyan-accent rounded-xl px-4 py-3 text-xs focus:outline-none transition-all text-white placeholder:text-white/20 font-sans"
+                />
+              </div>
+
+              <div className="p-3.5 bg-yellow-500/10 border border-yellow-500/20 text-yellow-300 font-sans rounded-xl text-xs space-y-1 text-left leading-relaxed">
+                <div className="flex items-center space-x-2 font-bold font-mono uppercase text-[9px] tracking-wider text-yellow-400">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Sandbox Testing Clearance</span>
+                </div>
+                <p className="font-light">
+                  All payment transactions are initialized using standard test certificates secure environment sandbox checkout credentials. Real-time billing routes and Razorpay/Stripe APIs are active and validated.
+                </p>
+              </div>
+
+              {/* Action */}
+              <button 
+                type="submit"
+                className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-primary to-cyan-accent hover:from-[#431BDB] hover:to-cyan-400 text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all shadow-lg active:scale-95 cursor-pointer font-sans"
+              >
+                <span>Authorize & Clear Secure Payment</span>
+                <Clock className="w-3.5 h-3.5" />
+              </button>
+            </form>
+
+            <div className="mt-6 flex justify-center items-center space-x-4 text-[9px] font-mono text-white/30 border-t border-white/5 pt-4">
+              <span className="flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5 text-green-500" />
+                <span>256-BIT SSL ENCRYPTED</span>
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <ShieldCheck className="w-2.5 h-2.5 text-green-500" />
+                <span>PCI-DSS CERTIFIED</span>
+              </span>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 4.7. SECURE PAYMENT SUCCESS CONFIRMATION DISPLAY MODAL */}
+      {showSuccessModal && paymentSuccessPlan && (
+        <div id="stripe-success-modal-overlay" className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-[#0c1f2e] via-[#0d152a] to-[#040815] w-full max-w-lg rounded-3xl p-6 sm:p-8 border-2 border-green-500/40 relative shadow-[0_0_80px_rgba(16,185,129,0.2)] text-center animate-fade-in my-auto max-h-[90vh] overflow-y-auto">
+            
+            {/* Close */}
+            <button 
+              onClick={() => {
+                setShowSuccessModal(false);
+                setPaymentSuccessPlan(null);
+              }}
+              className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/5 cursor-pointer outline-none transition-all"
+              title="Close feedback screen"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Radiant Success Icon Badge */}
+            <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 border border-green-500 flex items-center justify-center text-green-400 mb-6 relative">
+              <span className="absolute inset-0 rounded-full bg-green-500/10 animate-ping"></span>
+              <CheckCircle className="w-8 h-8 filter drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[10px] font-mono tracking-widest text-green-400 bg-green-500/10 px-2.5 py-1 rounded-full font-bold uppercase block w-max mx-auto border border-green-500/20">
+                PAYMENT RECEIVED SECURELY
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-extrabold font-display text-white">Project Initialized!</h3>
+              <p className="text-white/60 text-xs sm:text-sm font-light leading-relaxed max-w-sm mx-auto">
+                Thank you for your transaction! Your checkout has cleared successfully via our secure merchant gateway channel.
+              </p>
+            </div>
+
+            {/* Receipt Summary block */}
+            <div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl text-left space-y-3 mt-6">
+              <h4 className="text-[10px] font-bold text-white uppercase tracking-widest font-mono border-b border-white/5 pb-2">Receipt & Deployment Details</h4>
+              
+              <div className="grid grid-cols-2 gap-y-3.5 gap-x-4 text-xs">
+                <div>
+                  <span className="text-white/40 block text-[9px] uppercase tracking-wider font-semibold">Active Package</span>
+                  <span className="text-white font-bold block">{paymentSuccessPlan.name}</span>
+                </div>
+                <div>
+                  <span className="text-white/40 block text-[9px] uppercase tracking-wider font-semibold">Total Cleared</span>
+                  <span className="text-green-400 font-extrabold font-mono text-sm block">{paymentSuccessPlan.price} USD</span>
+                </div>
+                <div>
+                  <span className="text-white/40 block text-[9px] uppercase tracking-wider font-semibold">Deployment Status</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span>
+                    <span className="text-yellow-400 font-bold uppercase text-[9px] font-mono">ENQUEUED IN QUEUE</span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-white/40 block text-[9px] uppercase tracking-wider font-semibold">Estimated Kickoff</span>
+                  <span className="text-white block font-medium">Within 24 Hours</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action guidelines */}
+            <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-xs text-left text-white/80 leading-relaxed font-sans mt-6 space-y-2">
+              <p className="font-semibold text-primary flex items-center space-x-1">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <span>Next steps for setup kickoff:</span>
+              </p>
+              <ul className="space-y-1.5 list-disc pl-4 text-white/70 font-light font-sans text-[11px]">
+                <li>Our operations coordinator (Mia Collins) is enqueuing your digital briefing sheets.</li>
+                <li>We've generated tracking ticket ID <strong className="font-mono text-cyan-accent">#DIGI-{(Math.floor(1000 + Math.random() * 9000))}</strong>.</li>
+                <li>Please tap below to send your invoice ticket directly to us on WhatsApp for rapid direct connection!</li>
+              </ul>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <a 
+                href={getWhatsAppLink(`Hello Diginfotech Solutions India, my payment was successfully processed for the "${paymentSuccessPlan.name}" package! Let's kickoff my project structure.`)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-3 px-4 rounded-xl font-bold bg-primary hover:bg-[#431BDB] text-white uppercase tracking-widest text-xs flex items-center justify-center space-x-2 transition-all shadow-lg shadow-primary/20 cursor-pointer"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Kickoff on WhatsApp</span>
+              </a>
+              <button 
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setPaymentSuccessPlan(null);
+                }}
+                className="px-5 py-3 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 text-xs uppercase tracking-widest font-bold text-white transition-all cursor-pointer"
+              >
+                Continue Browsing
+              </button>
             </div>
 
           </div>

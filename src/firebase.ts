@@ -1,19 +1,20 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import firebaseConfig from "../firebase-applet-config.json";
 
-// Read from client-side Vite environment variables
+// Read from client-side Vite environment variables with robust fallback to config JSON
 const metaEnv = (import.meta as any).env || {};
 const config = {
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || "driver-first-4a302",
-  appId: metaEnv.VITE_FIREBASE_APP_ID || "1:590031557700:web:3b69b0a6cb29535a92d811",
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || "AIzaSyBfGQZ3qVCjPhcTUcOpa0feTbTFxBVgMgI",
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || "driver-first-4a302.firebaseapp.com",
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || "driver-first-4a302.firebasestorage.app",
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || "590031557700",
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId || "driver-first-4a302",
+  appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId || "1:590031557700:web:3b69b0a6cb29535a92d811",
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey || "AIzaSyBfGQZ3qVCjPhcTUcOpa0feTbTFxBVgMgI",
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain || "driver-first-4a302.firebaseapp.com",
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket || "driver-first-4a302.firebasestorage.app",
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId || "590031557700",
 };
 
 const app = initializeApp(config);
-export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)");
+export const db = getFirestore(app, metaEnv.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || "(default)");
 
 export enum OperationType {
   CREATE = "create",
